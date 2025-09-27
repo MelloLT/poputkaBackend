@@ -31,16 +31,16 @@ app.get("/test", (req, res) => {
 const startServer = async () => {
   try {
     await sequelize.authenticate();
-    console.log("✅ Connected to PostgreSQL successfully");
+    console.log("Connected to PostgreSQL successfully");
 
     await sequelize.sync({ force: false });
-    console.log("✅ Database synchronized");
+    console.log("Database synchronized");
 
     app.listen(PORT, () => {
-      console.log(`🚀 Server is running on http://localhost:${PORT}`);
+      console.log(`Server is running on http://localhost:${PORT}`);
     });
   } catch (error) {
-    console.error("❌ Error connecting to PostgreSQL:", error);
+    console.error("Error connecting to PostgreSQL:", error);
   }
 };
 

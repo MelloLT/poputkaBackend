@@ -1,13 +1,22 @@
 import express from "express";
-import { getTrips } from "../controllers/tripController";
+import {
+  getTrips,
+  createTrip,
+  updateTrip,
+  deleteTrip,
+} from "../controllers/tripController";
+import { auth } from "../middleware/auth";
 
 const router = express.Router();
 
 router.get("/", getTrips);
+// Пока закомментируем auth чтобы тестировать без авторизации
+// router.post("/", auth, createTrip);
+// router.patch("/:id", auth, updateTrip);
+// router.delete("/:id", auth, deleteTrip);
 
-// Пока остальные маршруты не нужны - можно закомментировать
-// router.post("/", createTrip);
-// router.patch("/:id", updateTrip);
-// router.delete("/:id", deleteTrip);
+router.post("/", createTrip);
+router.patch("/:id", updateTrip);
+router.delete("/:id", deleteTrip);
 
-export default router;
+export default router; // ✅ Добавляем default export
