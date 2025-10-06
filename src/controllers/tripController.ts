@@ -5,10 +5,16 @@ import User from "../models/User";
 
 export const getTrips = async (req: Request, res: Response) => {
   try {
-    const { from, to, date, price, seats } = req.query;
-    console.log("📋 Фильтры запроса:", { from, to, date, price, seats });
+    const { from, to, date, minPrice, maxPrice, seats } = req.query;
+    console.log("📋 Фильтры запроса:", {
+      from,
+      to,
+      date,
+      minPrice,
+      maxPrice,
+      seats,
+    });
 
-    // Базовые условия - только активные поездки
     const whereClause: any = { status: "active" };
 
     // 🔍 Фильтр по городу отправления
@@ -36,11 +42,17 @@ export const getTrips = async (req: Request, res: Response) => {
       };
     }
 
-    // 💰 Фильтр по максимальной цене
-    if (price) {
-      whereClause.price = {
-        [Op.lte]: parseFloat(price.toString()),
-      };
+    // 💰 НОВЫЕ ФИЛЬТРЫ ПО ЦЕНЕ (minPrice и maxPrice)
+    if (minPrice || maxPrice) {
+      whereClause.price = {};
+
+      if (minPrice) {
+        whereClause.price[Op.gte] = parseFloat(minPrice.toString());
+      }
+
+      if (maxPrice) {
+        whereClause.price[Op.lte] = parseFloat(maxPrice.toString());
+      }
     }
 
     // 👥 Фильтр по количеству мест
@@ -52,7 +64,6 @@ export const getTrips = async (req: Request, res: Response) => {
 
     console.log("🔍 Условия поиска:", JSON.stringify(whereClause, null, 2));
 
-    // Ищем поездки с учетом фильтров
     const trips = await Trip.findAll({
       where: whereClause,
       include: [
@@ -66,6 +77,7 @@ export const getTrips = async (req: Request, res: Response) => {
             "avatar",
             "rating",
             "isVerified",
+            "car",
           ],
         },
       ],
@@ -74,34 +86,12 @@ export const getTrips = async (req: Request, res: Response) => {
 
     console.log(`✅ Найдено поездок: ${trips.length}`);
 
-    // Форматируем данные для ответа
-    const formattedTrips = trips.map((trip) => ({
-      id: trip.id,
-      departure: trip.from.city,
-      arrival: trip.to.city,
-      price: trip.price,
-      departureTime: trip.departureTime,
-      seatsAvailable: trip.availableSeats,
-      driver: {
-        avatar: trip.driver?.avatar || "/images/default-avatar.png",
-        name: `${trip.driver?.firstName || "Водитель"} ${
-          trip.driver?.lastName || ""
-        }`.trim(),
-        rating: trip.driver?.rating || 5,
-        varified: trip.driver?.isVerified || false,
-      },
-      from: trip.from,
-      to: trip.to,
-      description: trip.description,
-      status: trip.status,
-    }));
-
     res.json({
       success: true,
-      data: formattedTrips,
+      data: trips,
       meta: {
         total: trips.length,
-        filters: { from, to, date, price, seats },
+        filters: { from, to, date, minPrice, maxPrice, seats },
       },
     });
   } catch (error) {
@@ -114,45 +104,126 @@ export const getTrips = async (req: Request, res: Response) => {
   }
 };
 
-export const createTrip = async (req: Request, res: Response) => {
+export const getTripById = async (req: Request, res: Response) => {
   try {
-    console.log("📝 Создаем поездку:", req.body);
+    const { id } = req.params;
 
-    const { from, to, departureTime, price, availableSeats, description } =
-      req.body;
+    const trip = await Trip.findByPk(id, {
+      include: [
+        {
+          model: User,
+          as: "driver",
+          attributes: [
+            "id",
+            "firstName",
+            "lastName",
+            "avatar",
+            "rating",
+            "isVerified",
+            "car",
+            "gender",
+          ],
+        },
+      ],
+    });
 
-    // Простая валидация
-    if (!from || !to || !departureTime || !price || !availableSeats) {
-      return res.status(400).json({
+    if (!trip) {
+      return res.status(404).json({
         success: false,
-        message: "Все поля обязательны",
+        message: "Поездка не найдена",
       });
     }
 
-    // Создаем поездку с фиксированным driverId (для теста)
+    res.json({
+      success: true,
+      data: trip,
+    });
+  } catch (error) {
+    console.error("❌ Ошибка при получении поездки:", error);
+    res.status(500).json({
+      success: false,
+      message: "Ошибка сервера",
+    });
+  }
+};
+
+export const createTrip = async (req: Request, res: Response) => {
+  try {
+    const driverId = req.user!.id;
+
+    const {
+      from,
+      to,
+      departureTime,
+      price,
+      availableSeats,
+      description,
+      instantBooking = false,
+      maxTwoBackSeats = false,
+    } = req.body;
+
+    console.log("📝 Создаем поездку для водителя:", driverId, req.body);
+
+    // Валидация обязательных полей
+    const requiredFields = [
+      "from",
+      "to",
+      "departureTime",
+      "price",
+      "availableSeats",
+    ];
+    const missingFields = requiredFields.filter((field) => !req.body[field]);
+
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Не заполнены обязательные поля: ${missingFields.join(", ")}`,
+      });
+    }
+
     const trip = await Trip.create({
-      driverId: 1, // Просто используем первого водителя
+      driverId,
       from,
       to,
       departureTime: new Date(departureTime),
       price: parseFloat(price),
       availableSeats: parseInt(availableSeats),
-      description: description || "Описание не указано",
+      description: description || "",
+      instantBooking: Boolean(instantBooking),
+      maxTwoBackSeats: Boolean(maxTwoBackSeats),
       status: "active",
     });
 
-    console.log("✅ Поездка создана:", trip.id);
+    const tripWithDriver = await Trip.findByPk(trip.id, {
+      include: [
+        {
+          model: User,
+          as: "driver",
+          attributes: [
+            "id",
+            "firstName",
+            "lastName",
+            "avatar",
+            "rating",
+            "isVerified",
+            "car",
+          ],
+        },
+      ],
+    });
+
+    console.log("✅ Поездка создана, ID:", trip.id);
 
     res.status(201).json({
       success: true,
       message: "Поездка создана успешно",
-      data: trip,
+      data: tripWithDriver,
     });
   } catch (error) {
     console.error("❌ Ошибка при создании поездки:", error);
     res.status(500).json({
       success: false,
-      message: "Ошибка сервера",
+      message: "Ошибка сервера при создании поездки",
     });
   }
 };
@@ -160,15 +231,19 @@ export const createTrip = async (req: Request, res: Response) => {
 export const updateTrip = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const driverId = req.user!.id;
     const updateData = req.body;
 
-    console.log("✏️ Обновляем поездку:", id, updateData);
+    console.log("✏️ Обновляем поездку ID:", id, "для водителя:", driverId);
 
-    const trip = await Trip.findByPk(id);
+    const trip = await Trip.findOne({
+      where: { id, driverId },
+    });
+
     if (!trip) {
       return res.status(404).json({
         success: false,
-        message: "Поездка не найдена",
+        message: "Поездка не найдена или у вас нет прав для редактирования",
       });
     }
 
@@ -176,14 +251,14 @@ export const updateTrip = async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      message: "Поездка обновлена",
+      message: "Поездка обновлена успешно",
       data: trip,
     });
   } catch (error) {
-    console.error("❌ Ошибка при обновлении:", error);
+    console.error("❌ Ошибка при обновлении поездки:", error);
     res.status(500).json({
       success: false,
-      message: "Ошибка сервера",
+      message: "Ошибка сервера при обновлении поездки",
     });
   }
 };
@@ -191,14 +266,18 @@ export const updateTrip = async (req: Request, res: Response) => {
 export const deleteTrip = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const driverId = req.user!.id;
 
-    console.log("🗑️ Удаляем поездку:", id);
+    console.log("🗑️ Удаляем поездку ID:", id, "для водителя:", driverId);
 
-    const trip = await Trip.findByPk(id);
+    const trip = await Trip.findOne({
+      where: { id, driverId },
+    });
+
     if (!trip) {
       return res.status(404).json({
         success: false,
-        message: "Поездка не найдена",
+        message: "Поездка не найдена или у вас нет прав для удаления",
       });
     }
 
@@ -206,13 +285,13 @@ export const deleteTrip = async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      message: "Поездка отменена",
+      message: "Поездка отменена успешно",
     });
   } catch (error) {
-    console.error("❌ Ошибка при удалении:", error);
+    console.error("❌ Ошибка при удалении поездки:", error);
     res.status(500).json({
       success: false,
-      message: "Ошибка сервера",
+      message: "Ошибка сервера при удалении поездки",
     });
   }
 };

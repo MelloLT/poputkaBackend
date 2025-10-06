@@ -6,6 +6,11 @@ import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
+// Генерация JWT токена
+const generateToken = (userId: number, userRole: string) => {
+  return jwt.sign({ userId, userRole }, JWT_SECRET, { expiresIn: "7d" });
+};
+
 export const register = async (req: Request, res: Response) => {
   try {
     const {
@@ -17,45 +22,45 @@ export const register = async (req: Request, res: Response) => {
       firstName,
       lastName,
       avatar,
+      gender,
+      car,
     } = req.body;
 
-    if (
-      !username ||
-      !email ||
-      !phone ||
-      !password ||
-      !role ||
-      !firstName ||
-      !lastName
-    ) {
+    // Валидация обязательных полей
+    const requiredFields = [
+      "username",
+      "email",
+      "phone",
+      "password",
+      "role",
+      "firstName",
+      "lastName",
+    ];
+    const missingFields = requiredFields.filter((field) => !req.body[field]);
+
+    if (missingFields.length > 0) {
       return res.status(400).json({
         success: false,
-        message:
-          "Все поля обязательны: username, email, phone, password, role, firstName, lastName",
+        message: `Не заполнены обязательные поля: ${missingFields.join(", ")}`,
       });
     }
 
-    const existingUsername = await User.findOne({ where: { username } });
-    if (existingUsername) {
-      return res.status(400).json({
-        success: false,
-        message: "Пользователь с таким логином уже существует",
-      });
-    }
+    // Проверка уникальности
+    const existingUser = await User.findOne({
+      where: {
+        [Op.or]: [{ username }, { email }, { phone }],
+      },
+    });
 
-    const existingEmail = await User.findOne({ where: { email } });
-    if (existingEmail) {
-      return res.status(400).json({
-        success: false,
-        message: "Пользователь с таким email уже существует",
-      });
-    }
+    if (existingUser) {
+      const conflicts = [];
+      if (existingUser.username === username) conflicts.push("логин");
+      if (existingUser.email === email) conflicts.push("email");
+      if (existingUser.phone === phone) conflicts.push("телефон");
 
-    const existingPhone = await User.findOne({ where: { phone } });
-    if (existingPhone) {
       return res.status(400).json({
         success: false,
-        message: "Пользователь с таким телефоном уже существует",
+        message: `Пользователь с таким ${conflicts.join(", ")} уже существует`,
       });
     }
 
@@ -71,13 +76,21 @@ export const register = async (req: Request, res: Response) => {
       firstName,
       lastName,
       avatar: avatar || undefined,
+      gender: gender || undefined,
+      car: car || undefined,
       rating: 0,
       isVerified: false,
       reviews: [],
     });
 
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, {
-      expiresIn: "7d",
+    const token = generateToken(user.id, user.role);
+
+    // Сохраняем токен в httpOnly cookie
+    res.cookie("accessToken", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 дней
+      sameSite: "strict",
     });
 
     res.status(201).json({
@@ -92,12 +105,12 @@ export const register = async (req: Request, res: Response) => {
           role: user.role,
           firstName: user.firstName,
           lastName: user.lastName,
-          fullName: user.fullName,
+          gender: user.gender,
           avatar: user.avatar,
           rating: user.rating,
           isVerified: user.isVerified,
+          car: user.car,
         },
-        token,
       },
     });
   } catch (error) {
@@ -141,8 +154,14 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, {
-      expiresIn: "7d",
+    const token = generateToken(user.id, user.role);
+
+    // Сохраняем токен в httpOnly cookie
+    res.cookie("accessToken", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      sameSite: "strict",
     });
 
     res.json({
@@ -157,12 +176,12 @@ export const login = async (req: Request, res: Response) => {
           role: user.role,
           firstName: user.firstName,
           lastName: user.lastName,
-          fullName: user.fullName,
+          gender: user.gender,
           avatar: user.avatar,
           rating: user.rating,
           isVerified: user.isVerified,
+          car: user.car,
         },
-        token,
       },
     });
   } catch (error) {
@@ -190,10 +209,11 @@ export const getMe = async (req: Request, res: Response) => {
           role: user.role,
           firstName: user.firstName,
           lastName: user.lastName,
-          fullName: user.fullName,
+          gender: user.gender,
           avatar: user.avatar,
           rating: user.rating,
           isVerified: user.isVerified,
+          car: user.car,
         },
       },
     });
@@ -204,4 +224,12 @@ export const getMe = async (req: Request, res: Response) => {
       message: "Ошибка сервера",
     });
   }
+};
+
+export const logout = (req: Request, res: Response) => {
+  res.clearCookie("accessToken");
+  res.json({
+    success: true,
+    message: "Выход выполнен успешно",
+  });
 };

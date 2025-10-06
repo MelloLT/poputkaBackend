@@ -6,11 +6,11 @@ import bcrypt from "bcryptjs";
 export const seedData = async () => {
   try {
     await sequelize.sync({ force: true });
-    console.log("✅ База данных готова");
+    console.log("База данных готова");
 
     const hashedPassword = await bcrypt.hash("password123", 12);
 
-    // Создаем водителей
+    // Создаем водителей с новыми полями
     const driver1 = await User.create({
       username: "ali_driver",
       email: "ali@example.com",
@@ -19,13 +19,16 @@ export const seedData = async () => {
       role: "driver",
       firstName: "Алишер",
       lastName: "Усманов",
+      gender: "male",
       avatar: "https://example.com/ali.jpg",
       rating: 4.8,
       isVerified: true,
       car: {
         model: "Chevrolet Cobalt",
         color: "Белый",
+        year: 2022,
         licensePlate: "01 A 123 AB",
+        photos: ["https://example.com/car1.jpg"],
       },
     });
 
@@ -37,17 +40,34 @@ export const seedData = async () => {
       role: "driver",
       firstName: "Дилбар",
       lastName: "Ахмедова",
+      gender: "female",
       avatar: "https://example.com/dilbar.jpg",
       rating: 4.9,
       isVerified: true,
       car: {
         model: "Nexia 3",
         color: "Серебристый",
+        year: 2020,
         licensePlate: "01 B 456 CD",
+        photos: ["https://example.com/car2.jpg"],
       },
     });
 
-    // Создаем поездки между узбекскими городами
+    // Создаем пассажиров
+    const passenger1 = await User.create({
+      username: "sarvar_passenger",
+      email: "sarvar@example.com",
+      phone: "+998901112233",
+      password: hashedPassword,
+      role: "passenger",
+      firstName: "Сарвар",
+      lastName: "Каримов",
+      gender: "male",
+      rating: 4.5,
+      isVerified: true,
+    });
+
+    // Создаем поездки с новыми полями
     await Trip.create({
       driverId: driver1.id,
       from: { city: "Ташкент", address: "Центральный автовокзал" },
@@ -55,7 +75,9 @@ export const seedData = async () => {
       departureTime: new Date("2024-12-20T08:00:00"),
       price: 150000,
       availableSeats: 3,
-      description: "Комфортная поездка, кондиционер, багажник просторный",
+      description: "Комфортная поездка, кондиционер",
+      instantBooking: true,
+      maxTwoBackSeats: true,
       status: "active",
     });
 
@@ -67,6 +89,8 @@ export const seedData = async () => {
       price: 200000,
       availableSeats: 2,
       description: "Быстрая поездка по новой дороге",
+      instantBooking: false,
+      maxTwoBackSeats: false,
       status: "active",
     });
 
@@ -78,49 +102,15 @@ export const seedData = async () => {
       price: 120000,
       availableSeats: 4,
       description: "Едем через живописные места",
+      instantBooking: true,
+      maxTwoBackSeats: true,
       status: "active",
     });
 
-    await Trip.create({
-      driverId: driver2.id,
-      from: { city: "Андижан", address: "Автовокзал Андижан" },
-      to: { city: "Фергана", address: "Автовокзал Фергана" },
-      departureTime: new Date("2024-12-23T09:15:00"),
-      price: 80000,
-      availableSeats: 1,
-      description: "Утренняя поездка, свежий воздух",
-      status: "active",
-    });
-
-    await Trip.create({
-      driverId: driver1.id,
-      from: { city: "Наманган", address: "Автовокзал Наманган" },
-      to: { city: "Андижан", address: "Автовокзал Андижан" },
-      departureTime: new Date("2024-12-24T16:45:00"),
-      price: 70000,
-      availableSeats: 2,
-      description: "Вечерняя поездка после работы",
-      status: "active",
-    });
-
-    console.log("✅ Узбекские поездки созданы!");
-    console.log(
-      "🗺️  Маршруты: Ташкент→Самарканд, Ташкент→Бухара, Самарканд→Бухара, Андижан→Фергана, Наманган→Андижан"
-    );
+    console.log("Тестовые данные созданы с новыми полями!");
+    console.log("Пользователей: 3 (2 водителя, 1 пассажир)");
+    console.log("Поездок: 3");
   } catch (error) {
-    console.error("❌ Ошибка:", error);
+    console.error("Ошибка:", error);
   }
 };
-
-// Добавь эти строки в самый конец файла:
-console.log("📢 Функция seedData определена, запускаем...");
-
-seedData()
-  .then(() => {
-    console.log("✅ Seed завершен успешно!");
-    process.exit(0);
-  })
-  .catch((error) => {
-    console.error("❌ Ошибка при выполнении seed:", error);
-    process.exit(1);
-  });

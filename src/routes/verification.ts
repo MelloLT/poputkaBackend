@@ -3,11 +3,11 @@ import {
   sendVerificationCode,
   verifyCode,
 } from "../controllers/verificationController";
-import { auth } from "../middleware/auth";
+import { authMiddleware } from "../middleware/auth";
 
 const router = express.Router();
 
-router.post("/send", auth, sendVerificationCode);
-router.post("/verify", auth, verifyCode);
+router.post("/send", authMiddleware, sendVerificationCode);
+router.post("/verify", authMiddleware, verifyCode);
 
 export default router;

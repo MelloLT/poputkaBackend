@@ -4,19 +4,22 @@ import {
   createTrip,
   updateTrip,
   deleteTrip,
+  getTripById,
 } from "../controllers/tripController";
-import { auth } from "../middleware/auth";
+import { authMiddleware, requireRole } from "../middleware/auth";
 
 const router = express.Router();
 
+// Публичные роуты
 router.get("/", getTrips);
-// Пока закомментируем auth чтобы тестировать без авторизации
-// router.post("/", auth, createTrip);
-// router.patch("/:id", auth, updateTrip);
-// router.delete("/:id", auth, deleteTrip);
+router.get("/:id", getTripById);
 
-router.post("/", createTrip);
-router.patch("/:id", updateTrip);
-router.delete("/:id", deleteTrip);
+// Защищенные роуты - требуют авторизации
+router.use(authMiddleware);
 
-export default router; // ✅ Добавляем default export
+// Только водители могут создавать/редактировать/удалять поездки
+router.post("/", requireRole("driver"), createTrip);
+router.patch("/:id", requireRole("driver"), updateTrip);
+router.delete("/:id", requireRole("driver"), deleteTrip);
+
+export default router;

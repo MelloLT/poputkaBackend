@@ -10,6 +10,7 @@ interface UserAttributes {
   role: "driver" | "passenger";
   firstName: string;
   lastName: string;
+  gender?: "male" | "female";
   avatar?: string;
   rating: number;
   isVerified: boolean;
@@ -23,7 +24,9 @@ interface UserAttributes {
   car?: {
     model: string;
     color: string;
+    year: number;
     licensePlate: string;
+    photos?: string[];
   };
 }
 
@@ -36,6 +39,7 @@ interface UserCreationAttributes
     | "reviews"
     | "avatar"
     | "car"
+    | "gender"
     | "verificationCode"
     | "verificationCodeExpires"
   > {}
@@ -52,6 +56,7 @@ class User
   public role!: "driver" | "passenger";
   public firstName!: string;
   public lastName!: string;
+  public gender?: "male" | "female";
   public avatar?: string;
   public rating!: number;
   public isVerified!: boolean;
@@ -65,7 +70,9 @@ class User
   public car?: {
     model: string;
     color: string;
+    year: number;
     licensePlate: string;
+    photos?: string[];
   };
 
   public readonly createdAt!: Date;
@@ -130,6 +137,10 @@ User.init(
       validate: {
         len: [2, 50],
       },
+    },
+    gender: {
+      type: DataTypes.ENUM("male", "female"),
+      allowNull: true,
     },
     avatar: {
       type: DataTypes.STRING,

@@ -4,6 +4,7 @@ import User from "../models/User";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
+// Расширяем тип Request для добавления user
 declare global {
   namespace Express {
     interface Request {
@@ -12,9 +13,14 @@ declare global {
   }
 }
 
-export const auth = async (req: Request, res: Response, next: NextFunction) => {
+export const authMiddleware = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const token = req.header("Authorization")?.replace("Bearer ", "");
+    // Берем токен из куки
+    const token = req.cookies.accessToken;
 
     if (!token) {
       return res.status(401).json({
@@ -23,23 +29,45 @@ export const auth = async (req: Request, res: Response, next: NextFunction) => {
       });
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
-    const user = await User.findByPk(decoded.userId);
+    // Проверяем и расшифровываем токен
+    const payload = jwt.verify(token, JWT_SECRET) as {
+      userId: number;
+      userRole: string;
+    };
 
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: "Пользователь не найден",
-      });
-    }
+    // Сохраняем данные пользователя в req.user
+    req.user = {
+      id: payload.userId,
+      role: payload.userRole,
+    } as User;
 
-    req.user = user;
     next();
   } catch (error) {
     console.error("Ошибка аутентификации:", error);
-    res.status(401).json({
+    return res.status(401).json({
       success: false,
-      message: "Неверный токен",
+      message: "Неверный или просроченный токен",
     });
   }
+};
+
+// Middleware для проверки роли
+export const requireRole = (role: string) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Требуется авторизация",
+      });
+    }
+
+    if (req.user.role !== role) {
+      return res.status(403).json({
+        success: false,
+        message: `Требуется роль: ${role}`,
+      });
+    }
+
+    next();
+  };
 };

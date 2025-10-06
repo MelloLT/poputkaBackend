@@ -1,31 +1,53 @@
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import * as dotenv from "dotenv";
 import sequelize from "./config/database";
 import authRoutes from "./routes/auth";
 import verificationRoutes from "./routes/verification";
-import tripRoutes from "./routes/trips"; // Импортируем поездки
+import tripRoutes from "./routes/trips";
+import userRoutes from "./routes/users"; // Добавляем новые роуты
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
+// Middleware
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    credentials: true, // Важно для куков!
+  })
+);
 app.use(express.json());
+app.use(cookieParser()); // Добавляем cookie-parser
 
 // Маршруты
 app.use("/auth", authRoutes);
 app.use("/verification", verificationRoutes);
-app.use("/trips", tripRoutes); // Добавляем поездки
+app.use("/trips", tripRoutes);
+app.use("/users", userRoutes); // Добавляем новые роуты
 
+// Базовые эндпоинты
 app.get("/", (req, res) => {
-  res.json({ message: "✅ Бэкенд Poputka работает!" });
+  res.json({
+    message: "✅ Бэкенд Poputka работает!",
+    endpoints: {
+      auth: "/auth",
+      trips: "/trips",
+      users: "/users",
+      verification: "/verification",
+    },
+  });
 });
 
-// Простой тестовый маршрут
-app.get("/test", (req, res) => {
-  res.json({ message: "✅ Тестовый маршрут работает!" });
+// Health check
+app.get("/health", (req, res) => {
+  res.json({
+    status: "OK",
+    timestamp: new Date().toISOString(),
+  });
 });
 
 const startServer = async () => {
@@ -38,9 +60,11 @@ const startServer = async () => {
 
     app.listen(PORT, () => {
       console.log(`Server is running on http://localhost:${PORT}`);
+      console.log(`Cookies enabled: YES`);
+      console.log(`JWT Auth: YES`);
     });
   } catch (error) {
-    console.error("Error connecting to PostgreSQL:", error);
+    console.error("❌ Error connecting to PostgreSQL:", error);
   }
 };
 

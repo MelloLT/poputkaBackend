@@ -16,11 +16,16 @@ export interface TripAttributes {
   price: number;
   availableSeats: number;
   description?: string;
+  instantBooking: boolean;
+  maxTwoBackSeats: boolean;
   status: "active" | "completed" | "cancelled";
 }
 
 export interface TripCreationAttributes
-  extends Optional<TripAttributes, "id" | "description" | "status"> {}
+  extends Optional<
+    TripAttributes,
+    "id" | "description" | "status" | "instantBooking" | "maxTwoBackSeats"
+  > {}
 
 class Trip
   extends Model<TripAttributes, TripCreationAttributes>
@@ -34,12 +39,13 @@ class Trip
   public price!: number;
   public availableSeats!: number;
   public description?: string;
+  public instantBooking!: boolean;
+  public maxTwoBackSeats!: boolean;
   public status!: "active" | "completed" | "cancelled";
 
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 
-  // Связь с водителем
   public driver?: User;
 }
 
@@ -103,6 +109,14 @@ Trip.init(
       type: DataTypes.TEXT,
       allowNull: true,
     },
+    instantBooking: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    maxTwoBackSeats: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
     status: {
       type: DataTypes.ENUM("active", "completed", "cancelled"),
       defaultValue: "active",
@@ -115,7 +129,6 @@ Trip.init(
   }
 );
 
-// Связь с водителем
 Trip.belongsTo(User, { foreignKey: "driverId", as: "driver" });
 User.hasMany(Trip, { foreignKey: "driverId" });
 
