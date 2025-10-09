@@ -3,7 +3,7 @@ import sequelize from "../config/database";
 import User from "./User";
 
 export interface Location {
-  city: string;
+  cityKey: string;
   address: string;
 }
 
@@ -69,7 +69,7 @@ Trip.init(
       allowNull: false,
       validate: {
         isValidLocation(value: any) {
-          if (!value.city || !value.address) {
+          if (!value.cityKey || !value.address) {
             throw new Error("Location must have city and address");
           }
         },
@@ -80,7 +80,7 @@ Trip.init(
       allowNull: false,
       validate: {
         isValidLocation(value: any) {
-          if (!value.city || !value.address) {
+          if (!value.Key || !value.address) {
             throw new Error("Location must have city and address");
           }
         },

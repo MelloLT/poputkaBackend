@@ -4,7 +4,6 @@ import User from "../models/User";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
-// Расширяем тип Request для добавления user
 declare global {
   namespace Express {
     interface Request {
@@ -19,7 +18,6 @@ export const authMiddleware = (
   next: NextFunction
 ) => {
   try {
-    // Берем токен из куки
     const token = req.cookies.accessToken;
 
     if (!token) {
@@ -29,13 +27,11 @@ export const authMiddleware = (
       });
     }
 
-    // Проверяем и расшифровываем токен
     const payload = jwt.verify(token, JWT_SECRET) as {
       userId: number;
       userRole: string;
     };
 
-    // Сохраняем данные пользователя в req.user
     req.user = {
       id: payload.userId,
       role: payload.userRole,
@@ -51,7 +47,6 @@ export const authMiddleware = (
   }
 };
 
-// Middleware для проверки роли
 export const requireRole = (role: string) => {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {

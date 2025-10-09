@@ -20,14 +20,14 @@ export const getTrips = async (req: Request, res: Response) => {
     // 🔍 Фильтр по городу отправления
     if (from) {
       whereClause.from = {
-        [Op.contains]: { city: from.toString() },
+        [Op.contains]: { cityKey: from.toString() },
       };
     }
 
     // 🎯 Фильтр по городу назначения
     if (to) {
       whereClause.to = {
-        [Op.contains]: { city: to.toString() },
+        [Op.contains]: { cityKey: to.toString() },
       };
     }
 

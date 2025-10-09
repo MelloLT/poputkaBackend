@@ -6,7 +6,8 @@ import sequelize from "./config/database";
 import authRoutes from "./routes/auth";
 import verificationRoutes from "./routes/verification";
 import tripRoutes from "./routes/trips";
-import userRoutes from "./routes/users"; // Добавляем новые роуты
+import userRoutes from "./routes/users";
+import bookingRoutes from "./routes/bookings";
 
 dotenv.config();
 
@@ -27,7 +28,8 @@ app.use(cookieParser()); // Добавляем cookie-parser
 app.use("/auth", authRoutes);
 app.use("/verification", verificationRoutes);
 app.use("/trips", tripRoutes);
-app.use("/users", userRoutes); // Добавляем новые роуты
+app.use("/users", userRoutes);
+app.use("/bookings", bookingRoutes);
 
 // Базовые эндпоинты
 app.get("/", (req, res) => {

@@ -2,15 +2,19 @@ import sequelize from "../config/database";
 import User from "../models/User";
 import Trip from "../models/Trip";
 import bcrypt from "bcryptjs";
+import Booking from "../models/Booking";
 
 export const seedData = async () => {
-  try {
-    await sequelize.sync({ force: true });
-    console.log("База данных готова");
+  console.log("=== НАЧАЛО SEED ===");
 
+  try {
+    console.log("1. Синхронизация базы данных...");
+    await sequelize.sync({ force: true });
+    console.log("✅ База данных синхронизирована");
+
+    console.log("2. Создание пользователей...");
     const hashedPassword = await bcrypt.hash("password123", 12);
 
-    // Создаем водителей с новыми полями
     const driver1 = await User.create({
       username: "ali_driver",
       email: "ali@example.com",
@@ -31,6 +35,7 @@ export const seedData = async () => {
         photos: ["https://example.com/car1.jpg"],
       },
     });
+    console.log("✅ Водитель 1 создан");
 
     const driver2 = await User.create({
       username: "dilbar_driver",
@@ -52,8 +57,8 @@ export const seedData = async () => {
         photos: ["https://example.com/car2.jpg"],
       },
     });
+    console.log("✅ Водитель 2 создан");
 
-    // Создаем пассажиров
     const passenger1 = await User.create({
       username: "sarvar_passenger",
       email: "sarvar@example.com",
@@ -66,12 +71,13 @@ export const seedData = async () => {
       rating: 4.5,
       isVerified: true,
     });
+    console.log("✅ Пассажир создан");
 
-    // Создаем поездки с новыми полями
+    console.log("3. Создание поездок...");
     await Trip.create({
       driverId: driver1.id,
-      from: { city: "Ташкент", address: "Центральный автовокзал" },
-      to: { city: "Самарканд", address: "Автовокзал Самарканд" },
+      from: { cityKey: "Ташкент", address: "Центральный автовокзал" },
+      to: { cityKey: "Самарканд", address: "Автовокзал Самарканд" },
       departureTime: new Date("2024-12-20T08:00:00"),
       price: 150000,
       availableSeats: 3,
@@ -80,11 +86,12 @@ export const seedData = async () => {
       maxTwoBackSeats: true,
       status: "active",
     });
+    console.log("✅ Поездка 1 создана");
 
     await Trip.create({
       driverId: driver2.id,
-      from: { city: "Ташкент", address: "Южный вокзал" },
-      to: { city: "Бухара", address: "Автовокзал Бухара" },
+      from: { cityKey: "Ташкент", address: "Южный вокзал" },
+      to: { cityKey: "Бухара", address: "Автовокзал Бухара" },
       departureTime: new Date("2024-12-21T10:30:00"),
       price: 200000,
       availableSeats: 2,
@@ -93,11 +100,12 @@ export const seedData = async () => {
       maxTwoBackSeats: false,
       status: "active",
     });
+    console.log("✅ Поездка 2 создана");
 
     await Trip.create({
       driverId: driver1.id,
-      from: { city: "Самарканд", address: "Автовокзал Самарканд" },
-      to: { city: "Бухара", address: "Центральный автовокзал" },
+      from: { cityKey: "Самарканд", address: "Автовокзал Самарканд" },
+      to: { cityKey: "Бухара", address: "Центральный автовокзал" },
       departureTime: new Date("2024-12-22T14:00:00"),
       price: 120000,
       availableSeats: 4,
@@ -106,11 +114,35 @@ export const seedData = async () => {
       maxTwoBackSeats: true,
       status: "active",
     });
+    console.log("✅ Поездка 3 создана");
 
-    console.log("Тестовые данные созданы с новыми полями!");
-    console.log("Пользователей: 3 (2 водителя, 1 пассажир)");
-    console.log("Поездок: 3");
-  } catch (error) {
-    console.error("Ошибка:", error);
+    console.log("4. Создание тестовых бронирований...");
+    await Booking.create({
+      passengerId: passenger1.id,
+      tripId: 1,
+      seats: 2,
+      status: "confirmed",
+    });
+    console.log("✅ Бронь 1 создана");
+
+    await Booking.create({
+      passengerId: passenger1.id,
+      tripId: 2,
+      seats: 1,
+      status: "pending",
+    });
+    console.log("✅ Бронь 2 создана");
+
+    console.log("=== SEED УСПЕШНО ЗАВЕРШЕН ===");
+    console.log("👤 Пользователей: 3 (2 водителя, 1 пассажир)");
+    console.log("🚗 Поездок: 3");
+    console.log("📋 Броней: 2");
+  } catch (error: any) {
+    console.log("=== ОШИБКА В SEED ===");
+    console.error("Сообщение:", error.message);
+    console.error("Stack:", error.stack);
   }
 };
+
+// Запускаем seed
+seedData();

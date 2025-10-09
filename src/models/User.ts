@@ -38,8 +38,8 @@ interface UserCreationAttributes
     | "isVerified"
     | "reviews"
     | "avatar"
-    | "car"
     | "gender"
+    | "car"
     | "verificationCode"
     | "verificationCodeExpires"
   > {}

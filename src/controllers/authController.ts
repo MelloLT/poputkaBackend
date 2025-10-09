@@ -6,12 +6,14 @@ import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
-// Генерация JWT токена
 const generateToken = (userId: number, userRole: string) => {
   return jwt.sign({ userId, userRole }, JWT_SECRET, { expiresIn: "7d" });
 };
 
 export const register = async (req: Request, res: Response) => {
+  console.log("=== НАЧАЛО РЕГИСТРАЦИИ ===");
+  console.log("Данные запроса:", JSON.stringify(req.body, null, 2));
+
   try {
     const {
       username,
@@ -26,26 +28,28 @@ export const register = async (req: Request, res: Response) => {
       car,
     } = req.body;
 
-    // Валидация обязательных полей
+    console.log("1. Проверка обязательных полей");
     const requiredFields = [
       "username",
       "email",
       "phone",
       "password",
       "role",
+      "gender",
       "firstName",
       "lastName",
     ];
     const missingFields = requiredFields.filter((field) => !req.body[field]);
 
     if (missingFields.length > 0) {
+      console.log("Отсутствуют поля:", missingFields);
       return res.status(400).json({
         success: false,
         message: `Не заполнены обязательные поля: ${missingFields.join(", ")}`,
       });
     }
 
-    // Проверка уникальности
+    console.log("2. Проверка уникальности пользователя");
     const existingUser = await User.findOne({
       where: {
         [Op.or]: [{ username }, { email }, { phone }],
@@ -53,6 +57,7 @@ export const register = async (req: Request, res: Response) => {
     });
 
     if (existingUser) {
+      console.log("Найден существующий пользователь");
       const conflicts = [];
       if (existingUser.username === username) conflicts.push("логин");
       if (existingUser.email === email) conflicts.push("email");
@@ -64,9 +69,11 @@ export const register = async (req: Request, res: Response) => {
       });
     }
 
+    console.log("3. Хэширование пароля");
     const salt = await bcrypt.genSalt(12);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    console.log("4. Создание пользователя в БД");
     const user = await User.create({
       username,
       email,
@@ -83,16 +90,18 @@ export const register = async (req: Request, res: Response) => {
       reviews: [],
     });
 
+    console.log("5. Генерация токена");
     const token = generateToken(user.id, user.role);
 
-    // Сохраняем токен в httpOnly cookie
+    console.log("6. Установка cookie");
     res.cookie("accessToken", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 дней
+      maxAge: 7 * 24 * 60 * 60 * 1000,
       sameSite: "strict",
     });
 
+    console.log("=== РЕГИСТРАЦИЯ УСПЕШНА ===");
     res.status(201).json({
       success: true,
       message: "Пользователь успешно зарегистрирован",
@@ -113,8 +122,13 @@ export const register = async (req: Request, res: Response) => {
         },
       },
     });
-  } catch (error) {
-    console.error("Ошибка при регистрации:", error);
+  } catch (error: any) {
+    console.log("=== ОШИБКА РЕГИСТРАЦИИ ===");
+    console.error("Тип ошибки:", typeof error);
+    console.error("Сообщение ошибки:", error.message);
+    console.error("Stack trace:", error.stack);
+    console.error("Полная ошибка:", error);
+
     res.status(500).json({
       success: false,
       message: "Ошибка сервера при регистрации",
@@ -124,9 +138,9 @@ export const register = async (req: Request, res: Response) => {
 
 export const login = async (req: Request, res: Response) => {
   try {
-    const { login, password } = req.body;
+    const { login: loginInput, password } = req.body;
 
-    if (!login || !password) {
+    if (!loginInput || !password) {
       return res.status(400).json({
         success: false,
         message: "Логин/email и пароль обязательны",
@@ -135,7 +149,7 @@ export const login = async (req: Request, res: Response) => {
 
     const user = await User.findOne({
       where: {
-        [Op.or]: [{ email: login }, { username: login }],
+        [Op.or]: [{ email: loginInput }, { username: loginInput }],
       },
     });
 
@@ -156,7 +170,6 @@ export const login = async (req: Request, res: Response) => {
 
     const token = generateToken(user.id, user.role);
 
-    // Сохраняем токен в httpOnly cookie
     res.cookie("accessToken", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -176,7 +189,6 @@ export const login = async (req: Request, res: Response) => {
           role: user.role,
           firstName: user.firstName,
           lastName: user.lastName,
-          gender: user.gender,
           avatar: user.avatar,
           rating: user.rating,
           isVerified: user.isVerified,
@@ -184,8 +196,8 @@ export const login = async (req: Request, res: Response) => {
         },
       },
     });
-  } catch (error) {
-    console.error("Ошибка при входе:", error);
+  } catch (error: any) {
+    console.error("Ошибка при входе:", error.message);
     res.status(500).json({
       success: false,
       message: "Ошибка сервера при входе",
@@ -209,7 +221,6 @@ export const getMe = async (req: Request, res: Response) => {
           role: user.role,
           firstName: user.firstName,
           lastName: user.lastName,
-          gender: user.gender,
           avatar: user.avatar,
           rating: user.rating,
           isVerified: user.isVerified,
@@ -217,8 +228,8 @@ export const getMe = async (req: Request, res: Response) => {
         },
       },
     });
-  } catch (error) {
-    console.error("Ошибка в getMe:", error);
+  } catch (error: any) {
+    console.error("Ошибка в getMe:", error.message);
     res.status(500).json({
       success: false,
       message: "Ошибка сервера",
