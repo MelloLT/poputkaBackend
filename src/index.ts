@@ -18,7 +18,7 @@ const PORT = process.env.PORT || 5000;
 app.use(
   cors({
     origin: process.env.FRONTEND_URL || "http://localhost:5173",
-    credentials: true, // Важно для куков!
+    credentials: true, // Важно для куков
   })
 );
 app.use(express.json());
@@ -34,7 +34,7 @@ app.use("/bookings", bookingRoutes);
 // Базовые эндпоинты
 app.get("/", (req, res) => {
   res.json({
-    message: "✅ Бэкенд Poputka работает!",
+    message: "Бэкенд Poputka работает.",
     endpoints: {
       auth: "/auth",
       trips: "/trips",
@@ -66,7 +66,7 @@ const startServer = async () => {
       console.log(`JWT Auth: YES`);
     });
   } catch (error) {
-    console.error("❌ Error connecting to PostgreSQL:", error);
+    console.error("Error connecting to PostgreSQL:", error);
   }
 };
 

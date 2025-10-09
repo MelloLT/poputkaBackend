@@ -29,7 +29,7 @@ export const getUsers = async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error("❌ Ошибка при получении пользователей:", error);
+    console.error("Ошибка при получении пользователей:", error);
     res.status(500).json({
       success: false,
       message: "Ошибка сервера",
@@ -60,7 +60,7 @@ export const getUserById = async (req: Request, res: Response) => {
       data: user,
     });
   } catch (error) {
-    console.error("❌ Ошибка при получении пользователя:", error);
+    console.error("Ошибка при получении пользователя:", error);
     res.status(500).json({
       success: false,
       message: "Ошибка сервера",
@@ -87,7 +87,7 @@ export const getDrivers = async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error("❌ Ошибка при получении водителей:", error);
+    console.error("Ошибка при получении водителей:", error);
     res.status(500).json({
       success: false,
       message: "Ошибка сервера",
@@ -137,7 +137,7 @@ export const updateUser = async (req: Request, res: Response) => {
       data: updatedUser,
     });
   } catch (error) {
-    console.error("❌ Ошибка при обновлении пользователя:", error);
+    console.error("Ошибка при обновлении пользователя:", error);
     res.status(500).json({
       success: false,
       message: "Ошибка сервера",

@@ -17,21 +17,21 @@ export const getTrips = async (req: Request, res: Response) => {
 
     const whereClause: any = { status: "active" };
 
-    // 🔍 Фильтр по городу отправления
+    // Фильтр по городу отправления
     if (from) {
       whereClause.from = {
         [Op.contains]: { cityKey: from.toString() },
       };
     }
 
-    // 🎯 Фильтр по городу назначения
+    // Фильтр по городу назначения
     if (to) {
       whereClause.to = {
         [Op.contains]: { cityKey: to.toString() },
       };
     }
 
-    // 📅 Фильтр по дате отправления
+    // Фильтр по дате отправления
     if (date) {
       const searchDate = new Date(date.toString());
       const nextDay = new Date(searchDate);
@@ -42,7 +42,7 @@ export const getTrips = async (req: Request, res: Response) => {
       };
     }
 
-    // 💰 НОВЫЕ ФИЛЬТРЫ ПО ЦЕНЕ (minPrice и maxPrice)
+    // НОВЫЕ ФИЛЬТРЫ ПО ЦЕНЕ (minPrice и maxPrice)
     if (minPrice || maxPrice) {
       whereClause.price = {};
 
@@ -55,14 +55,14 @@ export const getTrips = async (req: Request, res: Response) => {
       }
     }
 
-    // 👥 Фильтр по количеству мест
+    // Фильтр по количеству мест
     if (seats) {
       whereClause.availableSeats = {
         [Op.gte]: parseInt(seats.toString()),
       };
     }
 
-    console.log("🔍 Условия поиска:", JSON.stringify(whereClause, null, 2));
+    console.log("Условия поиска:", JSON.stringify(whereClause, null, 2));
 
     const trips = await Trip.findAll({
       where: whereClause,
@@ -84,7 +84,7 @@ export const getTrips = async (req: Request, res: Response) => {
       order: [["departureTime", "ASC"]],
     });
 
-    console.log(`✅ Найдено поездок: ${trips.length}`);
+    console.log(`Найдено поездок: ${trips.length}`);
 
     res.json({
       success: true,
@@ -95,7 +95,7 @@ export const getTrips = async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error("❌ Ошибка при поиске поездок:", error);
+    console.error("Ошибка при поиске поездок:", error);
     res.status(500).json({
       success: false,
       message: "Ошибка сервера при поиске поездок",
@@ -139,7 +139,7 @@ export const getTripById = async (req: Request, res: Response) => {
       data: trip,
     });
   } catch (error) {
-    console.error("❌ Ошибка при получении поездки:", error);
+    console.error("Ошибка при получении поездки:", error);
     res.status(500).json({
       success: false,
       message: "Ошибка сервера",
@@ -162,7 +162,7 @@ export const createTrip = async (req: Request, res: Response) => {
       maxTwoBackSeats = false,
     } = req.body;
 
-    console.log("📝 Создаем поездку для водителя:", driverId, req.body);
+    console.log("Создаем поездку для водителя:", driverId, req.body);
 
     // Валидация обязательных полей
     const requiredFields = [
@@ -212,7 +212,7 @@ export const createTrip = async (req: Request, res: Response) => {
       ],
     });
 
-    console.log("✅ Поездка создана, ID:", trip.id);
+    console.log("Поездка создана, ID:", trip.id);
 
     res.status(201).json({
       success: true,
@@ -220,7 +220,7 @@ export const createTrip = async (req: Request, res: Response) => {
       data: tripWithDriver,
     });
   } catch (error) {
-    console.error("❌ Ошибка при создании поездки:", error);
+    console.error("Ошибка при создании поездки:", error);
     res.status(500).json({
       success: false,
       message: "Ошибка сервера при создании поездки",
@@ -234,7 +234,7 @@ export const updateTrip = async (req: Request, res: Response) => {
     const driverId = req.user!.id;
     const updateData = req.body;
 
-    console.log("✏️ Обновляем поездку ID:", id, "для водителя:", driverId);
+    console.log("Обновляем поездку ID:", id, "для водителя:", driverId);
 
     const trip = await Trip.findOne({
       where: { id, driverId },
@@ -255,7 +255,7 @@ export const updateTrip = async (req: Request, res: Response) => {
       data: trip,
     });
   } catch (error) {
-    console.error("❌ Ошибка при обновлении поездки:", error);
+    console.error("Ошибка при обновлении поездки:", error);
     res.status(500).json({
       success: false,
       message: "Ошибка сервера при обновлении поездки",
@@ -268,7 +268,7 @@ export const deleteTrip = async (req: Request, res: Response) => {
     const { id } = req.params;
     const driverId = req.user!.id;
 
-    console.log("🗑️ Удаляем поездку ID:", id, "для водителя:", driverId);
+    console.log("Удаляем поездку ID:", id, "для водителя:", driverId);
 
     const trip = await Trip.findOne({
       where: { id, driverId },
@@ -288,7 +288,7 @@ export const deleteTrip = async (req: Request, res: Response) => {
       message: "Поездка отменена успешно",
     });
   } catch (error) {
-    console.error("❌ Ошибка при удалении поездки:", error);
+    console.error("Ошибка при удалении поездки:", error);
     res.status(500).json({
       success: false,
       message: "Ошибка сервера при удалении поездки",

@@ -80,7 +80,7 @@ Trip.init(
       allowNull: false,
       validate: {
         isValidLocation(value: any) {
-          if (!value.Key || !value.address) {
+          if (!value.cityKey || !value.address) {
             throw new Error("Location must have city and address");
           }
         },
