@@ -11,9 +11,6 @@ const generateToken = (userId: number, userRole: string) => {
 };
 
 export const register = async (req: Request, res: Response) => {
-  console.log("=== НАЧАЛО РЕГИСТРАЦИИ ===");
-  console.log("Данные запроса:", JSON.stringify(req.body, null, 2));
-
   try {
     const {
       username,
@@ -90,18 +87,6 @@ export const register = async (req: Request, res: Response) => {
       reviews: [],
     });
 
-    console.log("5. Генерация токена");
-    const token = generateToken(user.id, user.role);
-
-    console.log("6. Установка cookie");
-    res.cookie("accessToken", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      sameSite: "strict",
-    });
-
-    console.log("=== РЕГИСТРАЦИЯ УСПЕШНА ===");
     res.status(201).json({
       success: true,
       message: "Пользователь успешно зарегистрирован",
