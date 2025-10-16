@@ -12,7 +12,7 @@ declare global {
   }
 }
 
-export const authMiddleware = (
+export const authMiddleware = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -32,11 +32,21 @@ export const authMiddleware = (
       userRole: string;
     };
 
-    req.user = {
-      id: payload.userId,
-      role: payload.userRole,
-    } as User;
+    // НАЙТИ ПОЛЬЗОВАТЕЛЯ В БАЗЕ И СОХРАНИТЬ ВСЕ ДАННЫЕ
+    const user = await User.findByPk(payload.userId, {
+      attributes: {
+        exclude: ["password", "verificationCode", "verificationCodeExpires"],
+      },
+    });
 
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Пользователь не найден",
+      });
+    }
+
+    req.user = user;
     next();
   } catch (error) {
     console.error("Ошибка аутентификации:", error);
