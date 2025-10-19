@@ -99,7 +99,7 @@ export const getDrivers = async (req: Request, res: Response) => {
 export const updateUser = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const userId = req.user!.id;
+    const userId = req.user!.userId;
     const updateData = req.body;
 
     // Пользователь может обновлять только свой профиль

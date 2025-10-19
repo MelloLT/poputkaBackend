@@ -149,7 +149,7 @@ export const getTripById = async (req: Request, res: Response) => {
 
 export const createTrip = async (req: Request, res: Response) => {
   try {
-    const driverId = req.user!.id;
+    const driverId = req.user!.userId;
 
     const {
       from,
@@ -231,7 +231,7 @@ export const createTrip = async (req: Request, res: Response) => {
 export const updateTrip = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const driverId = req.user!.id;
+    const driverId = req.user!.userId;
     const updateData = req.body;
 
     console.log("Обновляем поездку ID:", id, "для водителя:", driverId);
@@ -266,7 +266,7 @@ export const updateTrip = async (req: Request, res: Response) => {
 export const deleteTrip = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const driverId = req.user!.id;
+    const driverId = req.user!.userId;
 
     console.log("Удаляем поездку ID:", id, "для водителя:", driverId);
 

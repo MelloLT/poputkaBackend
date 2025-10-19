@@ -87,6 +87,9 @@ export const register = async (req: Request, res: Response) => {
       reviews: [],
     });
 
+    // ✅ Генерируем токен и для регистрации тоже
+    const token = generateToken(user.id, user.role);
+
     res.status(201).json({
       success: true,
       message: "Пользователь успешно зарегистрирован",
@@ -105,6 +108,7 @@ export const register = async (req: Request, res: Response) => {
           isVerified: user.isVerified,
           car: user.car,
         },
+        token, // ✅ Добавляем токен в ответ
       },
     });
   } catch (error: any) {
@@ -155,12 +159,13 @@ export const login = async (req: Request, res: Response) => {
 
     const token = generateToken(user.id, user.role);
 
-    res.cookie("accessToken", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      sameSite: "strict",
-    });
+    // ❌ УДАЛЯЕМ куки - фронтендер будет сам хранить токен
+    // res.cookie("accessToken", token, {
+    //   httpOnly: true,
+    //   secure: process.env.NODE_ENV === "production",
+    //   maxAge: 7 * 24 * 60 * 60 * 1000,
+    //   sameSite: "strict",
+    // });
 
     res.json({
       success: true,
@@ -179,6 +184,7 @@ export const login = async (req: Request, res: Response) => {
           isVerified: user.isVerified,
           car: user.car,
         },
+        token, // ✅ Отдаем токен в ответе - фронтендер сохранит его
       },
     });
   } catch (error: any) {
@@ -192,7 +198,23 @@ export const login = async (req: Request, res: Response) => {
 
 export const getMe = async (req: Request, res: Response) => {
   try {
-    const user = req.user!;
+    // ❌ ПРОБЛЕМА: req.user теперь содержит только {userId, userRole}
+    // Нужно загрузить полные данные пользователя из БД
+
+    const userId = req.user!.userId; // ✅ Теперь используем userId из middleware
+
+    const user = await User.findByPk(userId, {
+      attributes: {
+        exclude: ["password", "verificationCode", "verificationCodeExpires"],
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Пользователь не найден",
+      });
+    }
 
     res.json({
       success: true,
@@ -223,7 +245,9 @@ export const getMe = async (req: Request, res: Response) => {
 };
 
 export const logout = (req: Request, res: Response) => {
-  res.clearCookie("accessToken");
+  // ❌ УДАЛЯЕМ куки - фронтендер сам удалит токен со своей стороны
+  // res.clearCookie("accessToken");
+
   res.json({
     success: true,
     message: "Выход выполнен успешно",

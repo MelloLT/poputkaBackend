@@ -8,7 +8,7 @@ const generateVerificationCode = () => {
 
 export const sendVerificationCode = async (req: Request, res: Response) => {
   try {
-    const userId = req.user!.id;
+    const userId = req.user!.userId;
     const user = await User.findByPk(userId);
 
     if (!user) {
@@ -56,7 +56,7 @@ export const sendVerificationCode = async (req: Request, res: Response) => {
 export const verifyCode = async (req: Request, res: Response) => {
   try {
     const { code } = req.body;
-    const userId = req.user!.id;
+    const userId = req.user!.userId;
 
     const user = await User.findByPk(userId);
 
