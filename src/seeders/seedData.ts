@@ -74,11 +74,14 @@ export const seedData = async () => {
     console.log("Пассажир создан");
 
     console.log("3. Создание поездок...");
+
+    // ПОЕЗДКА 1 - утренняя
     await Trip.create({
       driverId: driver1.id,
-      from: { cityKey: "Ташкент", address: "Центральный автовокзал" },
-      to: { cityKey: "Самарканд", address: "Автовокзал Самарканд" },
-      departureTime: new Date("2024-12-20T08:00:00"),
+      from: { cityKey: "tashkent", address: "Центральный автовокзал" },
+      to: { cityKey: "samarkand", address: "Автовокзал Самарканд" },
+      departureDate: "2024-12-20", // ИЗМЕНЕНО: строка
+      departureTime: "08:00", // ИЗМЕНЕНО: строка
       price: 150000,
       availableSeats: 3,
       description: "Комфортная поездка, кондиционер",
@@ -88,11 +91,13 @@ export const seedData = async () => {
     });
     console.log("Поездка 1 создана");
 
+    // ПОЕЗДКА 2 - дневная
     await Trip.create({
       driverId: driver2.id,
-      from: { cityKey: "Ташкент", address: "Южный вокзал" },
-      to: { cityKey: "Бухара", address: "Автовокзал Бухара" },
-      departureTime: new Date("2024-12-21T10:30:00"),
+      from: { cityKey: "tashkent", address: "Южный вокзал" },
+      to: { cityKey: "bukhara", address: "Автовокзал Бухара" },
+      departureDate: "2024-12-21", // ИЗМЕНЕНО: строка
+      departureTime: "10:30", // ИЗМЕНЕНО: строка
       price: 200000,
       availableSeats: 2,
       description: "Быстрая поездка по новой дороге",
@@ -102,11 +107,13 @@ export const seedData = async () => {
     });
     console.log("Поездка 2 создана");
 
+    // ПОЕЗДКА 3 - дневная
     await Trip.create({
       driverId: driver1.id,
-      from: { cityKey: "Самарканд", address: "Автовокзал Самарканд" },
-      to: { cityKey: "Бухара", address: "Центральный автовокзал" },
-      departureTime: new Date("2024-12-22T14:00:00"),
+      from: { cityKey: "samarkand", address: "Автовокзал Самарканд" },
+      to: { cityKey: "bukhara", address: "Центральный автовокзал" },
+      departureDate: "2024-12-22", // ИЗМЕНЕНО: строка
+      departureTime: "14:00", // ИЗМЕНЕНО: строка
       price: 120000,
       availableSeats: 4,
       description: "Едем через живописные места",
@@ -115,6 +122,22 @@ export const seedData = async () => {
       status: "active",
     });
     console.log("Поездка 3 создана");
+
+    // ПОЕЗДКА 4 - вечерняя (добавим для тестирования фильтров)
+    await Trip.create({
+      driverId: driver2.id,
+      from: { cityKey: "tashkent", address: "Северный вокзал" },
+      to: { cityKey: "andijan", address: "Автовокзал Андижан" },
+      departureDate: "2024-12-20", // ИЗМЕНЕНО: строка
+      departureTime: "18:30", // ИЗМЕНЕНО: строка
+      price: 180000,
+      availableSeats: 3,
+      description: "Вечерняя поездка, комфортные условия",
+      instantBooking: true,
+      maxTwoBackSeats: false,
+      status: "active",
+    });
+    console.log("Поездка 4 создана");
 
     console.log("4. Создание тестовых бронирований...");
     await Booking.create({
@@ -135,7 +158,7 @@ export const seedData = async () => {
 
     console.log("SEED УСПЕШНО ЗАВЕРШЕН");
     console.log("Пользователей: 3 (2 водителя, 1 пассажир)");
-    console.log("Поездок: 3");
+    console.log("Поездок: 4");
     console.log("Броней: 2");
   } catch (error: any) {
     console.log("ОШИБКА В SEED");

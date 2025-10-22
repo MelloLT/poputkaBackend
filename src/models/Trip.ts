@@ -12,7 +12,8 @@ export interface TripAttributes {
   driverId: number;
   from: Location;
   to: Location;
-  departureTime: Date;
+  departureDate: string;
+  departureTime: string;
   price: number;
   availableSeats: number;
   description?: string;
@@ -35,7 +36,8 @@ class Trip
   public driverId!: number;
   public from!: Location;
   public to!: Location;
-  public departureTime!: Date;
+  public departureDate!: string;
+  public departureTime!: string;
   public price!: number;
   public availableSeats!: number;
   public description?: string;
@@ -86,8 +88,12 @@ Trip.init(
         },
       },
     },
+    departureDate: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
     departureTime: {
-      type: DataTypes.DATE,
+      type: DataTypes.STRING,
       allowNull: false,
     },
     price: {

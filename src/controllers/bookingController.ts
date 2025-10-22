@@ -5,7 +5,7 @@ import User from "../models/User";
 
 export const createBooking = async (req: Request, res: Response) => {
   try {
-    const passengerId = req.user!.userId;
+    const passengerId = req.user!.id;
     const { tripId, seats } = req.body;
 
     if (!tripId || !seats) {
@@ -78,7 +78,7 @@ export const createBooking = async (req: Request, res: Response) => {
 
 export const getMyBookings = async (req: Request, res: Response) => {
   try {
-    const passengerId = req.user!.userId;
+    const passengerId = req.user!.id;
 
     const bookings = await Booking.findAll({
       where: { passengerId },
@@ -121,7 +121,7 @@ export const getMyBookings = async (req: Request, res: Response) => {
 export const cancelBooking = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const passengerId = req.user!.userId;
+    const passengerId = req.user!.id;
 
     const booking = await Booking.findOne({
       where: { id, passengerId },

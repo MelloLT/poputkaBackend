@@ -5,7 +5,18 @@ import User from "../models/User";
 
 export const getTrips = async (req: Request, res: Response) => {
   try {
-    const { from, to, date, minPrice, maxPrice, seats } = req.query;
+    const {
+      from,
+      to,
+      date,
+      minPrice,
+      maxPrice,
+      seats,
+      timeFrom,
+      timeTo,
+      driverGender,
+    } = req.query;
+
     console.log("📋 Фильтры запроса:", {
       from,
       to,
@@ -13,9 +24,28 @@ export const getTrips = async (req: Request, res: Response) => {
       minPrice,
       maxPrice,
       seats,
+      timeFrom,
+      timeTo,
+      driverGender,
     });
 
     const whereClause: any = { status: "active" };
+    const includeClause: any = [
+      {
+        model: User,
+        as: "driver",
+        attributes: [
+          "id",
+          "firstName",
+          "lastName",
+          "avatar",
+          "rating",
+          "isVerified",
+          "car",
+          "gender",
+        ],
+      },
+    ];
 
     // Фильтр по городу отправления
     if (from) {
@@ -31,25 +61,24 @@ export const getTrips = async (req: Request, res: Response) => {
       };
     }
 
-    // Фильтр по дате отправления
+    // ФИКС: Фильтр по дате (теперь сравниваем строки)
     if (date) {
-      const searchDate = new Date(date.toString());
-      const nextDay = new Date(searchDate);
-      nextDay.setDate(nextDay.getDate() + 1);
-
-      whereClause.departureTime = {
-        [Op.between]: [searchDate, nextDay],
-      };
+      whereClause.departureDate = date.toString();
     }
 
-    // НОВЫЕ ФИЛЬТРЫ ПО ЦЕНЕ (minPrice и maxPrice)
+    // ФИКС: Фильтр по времени (сравниваем строки "HH:mm")
+    if (timeFrom || timeTo) {
+      whereClause.departureTime = {};
+      if (timeFrom) whereClause.departureTime[Op.gte] = timeFrom.toString();
+      if (timeTo) whereClause.departureTime[Op.lte] = timeTo.toString();
+    }
+
+    // Фильтр по цене
     if (minPrice || maxPrice) {
       whereClause.price = {};
-
       if (minPrice) {
         whereClause.price[Op.gte] = parseFloat(minPrice.toString());
       }
-
       if (maxPrice) {
         whereClause.price[Op.lte] = parseFloat(maxPrice.toString());
       }
@@ -62,26 +91,22 @@ export const getTrips = async (req: Request, res: Response) => {
       };
     }
 
+    // Фильтр по полу водителя
+    if (driverGender) {
+      includeClause[0].where = {
+        gender: driverGender.toString(),
+      };
+    }
+
     console.log("Условия поиска:", JSON.stringify(whereClause, null, 2));
 
     const trips = await Trip.findAll({
       where: whereClause,
-      include: [
-        {
-          model: User,
-          as: "driver",
-          attributes: [
-            "id",
-            "firstName",
-            "lastName",
-            "avatar",
-            "rating",
-            "isVerified",
-            "car",
-          ],
-        },
-      ],
-      order: [["departureTime", "ASC"]],
+      include: includeClause,
+      order: [
+        ["departureDate", "ASC"],
+        ["departureTime", "ASC"],
+      ], // ФИКС: сортировка
     });
 
     console.log(`Найдено поездок: ${trips.length}`);
@@ -91,7 +116,17 @@ export const getTrips = async (req: Request, res: Response) => {
       data: trips,
       meta: {
         total: trips.length,
-        filters: { from, to, date, minPrice, maxPrice, seats },
+        filters: {
+          from,
+          to,
+          date,
+          minPrice,
+          maxPrice,
+          seats,
+          timeFrom,
+          timeTo,
+          driverGender,
+        },
       },
     });
   } catch (error) {
@@ -149,11 +184,12 @@ export const getTripById = async (req: Request, res: Response) => {
 
 export const createTrip = async (req: Request, res: Response) => {
   try {
-    const driverId = req.user!.userId;
+    const driverId = req.user!.id;
 
     const {
       from,
       to,
+      departureDate,
       departureTime,
       price,
       availableSeats,
@@ -162,12 +198,11 @@ export const createTrip = async (req: Request, res: Response) => {
       maxTwoBackSeats = false,
     } = req.body;
 
-    console.log("Создаем поездку для водителя:", driverId, req.body);
-
     // Валидация обязательных полей
     const requiredFields = [
       "from",
       "to",
+      "departureDate",
       "departureTime",
       "price",
       "availableSeats",
@@ -175,9 +210,32 @@ export const createTrip = async (req: Request, res: Response) => {
     const missingFields = requiredFields.filter((field) => !req.body[field]);
 
     if (missingFields.length > 0) {
+      console.log("5. Отсутствуют поля:", missingFields);
       return res.status(400).json({
         success: false,
         message: `Не заполнены обязательные поля: ${missingFields.join(", ")}`,
+      });
+    }
+
+    // Проверка формата времени
+    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!timeRegex.test(departureTime)) {
+      console.log("6. Неверный формат времени:", departureTime);
+      return res.status(400).json({
+        success: false,
+        message: "Неверный формат времени. Используйте HH:mm (например: 14:30)",
+      });
+    }
+
+    // Проверка что поездка в будущем
+    const tripDateTime = new Date(`${departureDate}T${departureTime}:00`);
+    const now = new Date();
+
+    if (tripDateTime <= now) {
+      console.log("10. Поездка в прошлом!");
+      return res.status(400).json({
+        success: false,
+        message: "Нельзя создать поездку с прошедшей датой или временем",
       });
     }
 
@@ -185,7 +243,8 @@ export const createTrip = async (req: Request, res: Response) => {
       driverId,
       from,
       to,
-      departureTime: new Date(departureTime),
+      departureDate,
+      departureTime,
       price: parseFloat(price),
       availableSeats: parseInt(availableSeats),
       description: description || "",
@@ -212,18 +271,22 @@ export const createTrip = async (req: Request, res: Response) => {
       ],
     });
 
-    console.log("Поездка создана, ID:", trip.id);
-
     res.status(201).json({
       success: true,
       message: "Поездка создана успешно",
       data: tripWithDriver,
     });
-  } catch (error) {
-    console.error("Ошибка при создании поездки:", error);
+  } catch (error: any) {
+    console.log("=== ОШИБКА В createTrip ===");
+    console.error("Тип ошибки:", typeof error);
+    console.error("Сообщение ошибки:", error.message);
+    console.error("Stack trace:", error.stack);
+    console.error("Полная ошибка:", JSON.stringify(error, null, 2));
+
     res.status(500).json({
       success: false,
       message: "Ошибка сервера при создании поездки",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -231,7 +294,7 @@ export const createTrip = async (req: Request, res: Response) => {
 export const updateTrip = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const driverId = req.user!.userId;
+    const driverId = req.user!.id;
     const updateData = req.body;
 
     console.log("Обновляем поездку ID:", id, "для водителя:", driverId);
@@ -266,7 +329,7 @@ export const updateTrip = async (req: Request, res: Response) => {
 export const deleteTrip = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const driverId = req.user!.userId;
+    const driverId = req.user!.id;
 
     console.log("Удаляем поездку ID:", id, "для водителя:", driverId);
 
