@@ -8,6 +8,7 @@ import verificationRoutes from "./routes/verification";
 import tripRoutes from "./routes/trips";
 import userRoutes from "./routes/users";
 import bookingRoutes from "./routes/bookings";
+import uploadRoutes from "./routes/upload";
 
 dotenv.config();
 
@@ -30,6 +31,8 @@ app.use("/verification", verificationRoutes);
 app.use("/trips", tripRoutes);
 app.use("/users", userRoutes);
 app.use("/bookings", bookingRoutes);
+app.use("/uploads", express.static("src/uploads"));
+app.use("/upload", uploadRoutes);
 
 // Базовые эндпоинты
 app.get("/", (req, res) => {
