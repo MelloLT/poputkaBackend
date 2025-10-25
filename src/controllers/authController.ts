@@ -166,19 +166,7 @@ export const login = async (req: Request, res: Response) => {
       success: true,
       message: "Вход выполнен успешно",
       data: {
-        user: {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          phone: user.phone,
-          role: user.role,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          avatar: user.avatar,
-          rating: user.rating,
-          isVerified: user.isVerified,
-          car: user.car,
-        },
+        token: token, // ✅ ТОЛЬКО ТОКЕН
       },
     });
   } catch (error: any) {

@@ -24,7 +24,7 @@ export const seedData = async () => {
       firstName: "Алишер",
       lastName: "Усманов",
       gender: "male",
-      avatar: "https://example.com/ali.jpg",
+      avatar: "/uploads/avatars/default-male.jpg",
       rating: 4.8,
       isVerified: true,
       car: {
@@ -32,7 +32,10 @@ export const seedData = async () => {
         color: "Белый",
         year: 2022,
         licensePlate: "01 A 123 AB",
-        photos: ["https://example.com/car1.jpg"],
+        photos: [
+          "/uploads/cars/chevrolet-cobalt-1.jpg",
+          "/uploads/cars/chevrolet-cobalt-2.jpg",
+        ],
       },
     });
     console.log("Водитель 1 создан");
@@ -46,7 +49,7 @@ export const seedData = async () => {
       firstName: "Дилбар",
       lastName: "Ахмедова",
       gender: "female",
-      avatar: "https://example.com/dilbar.jpg",
+      avatar: "/uploads/avatars/default-female.jpg",
       rating: 4.9,
       isVerified: true,
       car: {
@@ -54,7 +57,7 @@ export const seedData = async () => {
         color: "Серебристый",
         year: 2020,
         licensePlate: "01 B 456 CD",
-        photos: ["https://example.com/car2.jpg"],
+        photos: ["/uploads/cars/nexia-3-1.jpg"],
       },
     });
     console.log("Водитель 2 создан");

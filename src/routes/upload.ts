@@ -2,7 +2,7 @@ import express from "express";
 import {
   uploadAvatar,
   uploadCarPhotos,
-  deleteFile,
+  deleteFileByUrl,
 } from "../controllers/uploadController";
 import { authMiddleware } from "../middleware/auth";
 import {
@@ -29,6 +29,6 @@ router.post(
 );
 
 // Удаление файла
-router.delete("/file", authMiddleware, deleteFile);
+router.delete("/file", authMiddleware, deleteFileByUrl);
 
 export default router;
