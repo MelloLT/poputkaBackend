@@ -46,6 +46,67 @@ export const register = async (req: Request, res: Response) => {
       });
     }
 
+    const validationErrors: string[] = [];
+
+    // 1. Валидация email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const allowedDomains = [
+      "gmail.com",
+      "mail.ru",
+      "yandex.ru",
+      "yahoo.com",
+      "outlook.com",
+      "icloud.com",
+      "uz",
+      "umail.uz",
+    ];
+    const emailDomain = email.split("@")[1];
+
+    if (
+      !emailRegex.test(email) ||
+      !allowedDomains.includes(emailDomain?.toLowerCase())
+    ) {
+      validationErrors.push(
+        "Адрес электронной почты недействительный. Попробуйте следующий формат: email@example.com."
+      );
+    }
+
+    // 2. Валидация phone
+    const phoneRegex = /^\+?[0-9]{11,15}$/;
+    if (!phoneRegex.test(phone.replace(/\s/g, ""))) {
+      validationErrors.push("Неверный формат номера телефона");
+    }
+
+    // 3. Валидация password
+    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d._-]{10,18}$/;
+    if (!passwordRegex.test(password)) {
+      validationErrors.push(
+        "Неверный формат пароля. Пароль должен содержать ластинские буквы и цифры, точки и тире"
+      );
+    }
+
+    // 4. Валидация имени и фамилии
+    const nameRegex = /^[A-Za-zА-Яа-яЁё\s]{1,20}$/;
+    if (!nameRegex.test(firstName)) {
+      validationErrors.push(
+        "firstName должен состоять из букв и быть не длиннее 20 символов"
+      );
+    }
+    if (!nameRegex.test(lastName)) {
+      validationErrors.push(
+        "lastName должен состоять из букв и быть не длиннее 20 символов"
+      );
+    }
+
+    // Если есть ошибки валидации - возвращаем 422
+    if (validationErrors.length > 0) {
+      return res.status(422).json({
+        success: false,
+        message: "Ошибки валидации",
+        errors: validationErrors,
+      });
+    }
+
     console.log("2. Проверка уникальности пользователя");
     const existingUser = await User.findOne({
       where: {
@@ -113,6 +174,15 @@ export const register = async (req: Request, res: Response) => {
     console.error("Сообщение ошибки:", error.message);
     console.error("Stack trace:", error.stack);
     console.error("Полная ошибка:", error);
+
+    if (error.name === "SequelizeValidationError") {
+      const validationErrors = error.errors.map((err: any) => err.message);
+      return res.status(422).json({
+        success: false,
+        message: "Ошибки валидации",
+        errors: validationErrors,
+      });
+    }
 
     res.status(500).json({
       success: false,

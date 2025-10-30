@@ -11,7 +11,7 @@ interface UserAttributes {
   firstName: string;
   lastName: string;
   gender?: "male" | "female";
-  avatar?: string;
+  avatar?: string | null;
   rating: number;
   isVerified: boolean;
   verificationCode?: string;
@@ -57,7 +57,7 @@ class User
   public firstName!: string;
   public lastName!: string;
   public gender?: "male" | "female";
-  public avatar?: string;
+  public avatar?: string | null;
   public rating!: number;
   public isVerified!: boolean;
   public verificationCode?: string;
