@@ -88,7 +88,7 @@ export const uploadCarPhotos = async (req: Request, res: Response) => {
   }
 };
 
-// 🗑️ УДАЛЕНИЕ ПО URL (КОМПАКТНАЯ ВЕРСИЯ)
+//  УДАЛЕНИЕ ПО URL (КОМПАКТНАЯ ВЕРСИЯ)
 export const deleteFileByUrl = async (req: Request, res: Response) => {
   try {
     const { fileUrl } = req.body;
@@ -141,7 +141,7 @@ export const deleteFileByUrl = async (req: Request, res: Response) => {
         success: true,
         message: "Файл успешно удален",
         data: {
-          deletedUrl: fileUrl, // ✅ ТОЛЬКО URL УДАЛЕННОГО ФАЙЛА
+          deletedUrl: fileUrl, // ТОЛЬКО URL УДАЛЕННОГО ФАЙЛА
         },
       });
     } else {
