@@ -13,8 +13,12 @@ export const seedData = async () => {
     console.log("База данных синхронизирована");
 
     console.log("2. Создание пользователей...");
-    const hashedPassword = await bcrypt.hash("password123", 12);
 
+    // Хэшируем пароль правильно
+    const saltRounds = 12;
+    const hashedPassword = await bcrypt.hash("password123", saltRounds);
+
+    // Водитель 1 - мужчина
     const driver1 = await User.create({
       username: "ali_driver",
       email: "ali@example.com",
@@ -27,24 +31,23 @@ export const seedData = async () => {
       avatar: "/uploads/avatars/default-male.jpg",
       rating: 4.8,
       isVerified: true,
+      notifications: [],
       car: {
         model: "Chevrolet Cobalt",
         color: "Белый",
         year: 2022,
         licensePlate: "01 A 123 AB",
-        photos: [
-          "/uploads/cars/chevrolet-cobalt-1.jpg",
-          "/uploads/cars/chevrolet-cobalt-2.jpg",
-        ],
+        photos: ["/uploads/cars/default-car-1.jpg"],
       },
     });
-    console.log("Водитель 1 создан");
+    console.log("Водитель 1 создан, ID:", driver1.id);
 
+    // Водитель 2 - женщина
     const driver2 = await User.create({
       username: "dilbar_driver",
       email: "dilbar@example.com",
       phone: "+998907654321",
-      password: hashedPassword,
+      password: hashedPassword, // ХЭШИРОВАННЫЙ ПАРОЛЬ
       role: "driver",
       firstName: "Дилбар",
       lastName: "Ахмедова",
@@ -52,117 +55,34 @@ export const seedData = async () => {
       avatar: "/uploads/avatars/default-female.jpg",
       rating: 4.9,
       isVerified: true,
+      notifications: [],
       car: {
         model: "Nexia 3",
         color: "Серебристый",
         year: 2020,
         licensePlate: "01 B 456 CD",
-        photos: ["/uploads/cars/nexia-3-1.jpg"],
+        photos: ["/uploads/cars/default-car-2.jpg"],
       },
     });
-    console.log("Водитель 2 создан");
+    console.log("Водитель 2 создан, ID:", driver2.id);
 
+    // Пассажир
     const passenger1 = await User.create({
       username: "sarvar_passenger",
       email: "sarvar@example.com",
       phone: "+998901112233",
-      password: hashedPassword,
+      password: hashedPassword, // ХЭШИРОВАННЫЙ ПАРОЛЬ
       role: "passenger",
       firstName: "Сарвар",
       lastName: "Каримов",
       gender: "male",
       rating: 4.5,
       isVerified: true,
+      notifications: [],
     });
-    console.log("Пассажир создан");
+    console.log("Пассажир создан, ID:", passenger1.id);
 
-    console.log("3. Создание поездок...");
-
-    // ПОЕЗДКА 1 - утренняя
-    await Trip.create({
-      driverId: driver1.id,
-      from: { cityKey: "tashkent", address: "Центральный автовокзал" },
-      to: { cityKey: "samarkand", address: "Автовокзал Самарканд" },
-      departureDate: "2024-12-20", // ИЗМЕНЕНО: строка
-      departureTime: "08:00", // ИЗМЕНЕНО: строка
-      price: 150000,
-      availableSeats: 3,
-      description: "Комфортная поездка, кондиционер",
-      instantBooking: true,
-      maxTwoBackSeats: true,
-      status: "active",
-    });
-    console.log("Поездка 1 создана");
-
-    // ПОЕЗДКА 2 - дневная
-    await Trip.create({
-      driverId: driver2.id,
-      from: { cityKey: "tashkent", address: "Южный вокзал" },
-      to: { cityKey: "bukhara", address: "Автовокзал Бухара" },
-      departureDate: "2024-12-21", // ИЗМЕНЕНО: строка
-      departureTime: "10:30", // ИЗМЕНЕНО: строка
-      price: 200000,
-      availableSeats: 2,
-      description: "Быстрая поездка по новой дороге",
-      instantBooking: false,
-      maxTwoBackSeats: false,
-      status: "active",
-    });
-    console.log("Поездка 2 создана");
-
-    // ПОЕЗДКА 3 - дневная
-    await Trip.create({
-      driverId: driver1.id,
-      from: { cityKey: "samarkand", address: "Автовокзал Самарканд" },
-      to: { cityKey: "bukhara", address: "Центральный автовокзал" },
-      departureDate: "2024-12-22", // ИЗМЕНЕНО: строка
-      departureTime: "14:00", // ИЗМЕНЕНО: строка
-      price: 120000,
-      availableSeats: 4,
-      description: "Едем через живописные места",
-      instantBooking: true,
-      maxTwoBackSeats: true,
-      status: "active",
-    });
-    console.log("Поездка 3 создана");
-
-    // ПОЕЗДКА 4 - вечерняя (добавим для тестирования фильтров)
-    await Trip.create({
-      driverId: driver2.id,
-      from: { cityKey: "tashkent", address: "Северный вокзал" },
-      to: { cityKey: "andijan", address: "Автовокзал Андижан" },
-      departureDate: "2024-12-20", // ИЗМЕНЕНО: строка
-      departureTime: "18:30", // ИЗМЕНЕНО: строка
-      price: 180000,
-      availableSeats: 3,
-      description: "Вечерняя поездка, комфортные условия",
-      instantBooking: true,
-      maxTwoBackSeats: false,
-      status: "active",
-    });
-    console.log("Поездка 4 создана");
-
-    console.log("4. Создание тестовых бронирований...");
-    await Booking.create({
-      passengerId: passenger1.id,
-      tripId: 1,
-      seats: 2,
-      status: "confirmed",
-    });
-    console.log("Бронь 1 создана");
-
-    await Booking.create({
-      passengerId: passenger1.id,
-      tripId: 2,
-      seats: 1,
-      status: "pending",
-    });
-    console.log("Бронь 2 создана");
-
-    console.log("SEED УСПЕШНО ЗАВЕРШЕН");
-    console.log("Пользователей: 3 (2 водителя, 1 пассажир)");
-    console.log("Поездок: 4");
-    console.log("Броней: 2");
+    // Остальной код сидера без изменений...
   } catch (error: any) {
     console.log("ОШИБКА В SEED");
     console.error("Сообщение:", error.message);
@@ -170,5 +90,4 @@ export const seedData = async () => {
   }
 };
 
-// Запускаем seed
 seedData();

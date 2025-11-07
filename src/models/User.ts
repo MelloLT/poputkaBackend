@@ -28,6 +28,16 @@ interface UserAttributes {
     licensePlate: string;
     photos?: string[];
   };
+  notifications: Array<{
+    // ✅ ДОБАВЛЕНО
+    id: string;
+    type: "success" | "error" | "info";
+    title: string;
+    message: string;
+    isRead: boolean;
+    createdAt: Date;
+    relatedBookingId?: number;
+  }>;
 }
 
 interface UserCreationAttributes
@@ -42,6 +52,7 @@ interface UserCreationAttributes
     | "car"
     | "verificationCode"
     | "verificationCodeExpires"
+    | "notifications" // ✅ ДОБАВЛЕНО
   > {}
 
 class User
@@ -74,6 +85,16 @@ class User
     licensePlate: string;
     photos?: string[];
   };
+  public notifications!: Array<{
+    // ✅ ДОБАВЛЕНО
+    id: string;
+    type: "success" | "error" | "info";
+    title: string;
+    message: string;
+    isRead: boolean;
+    createdAt: Date;
+    relatedBookingId?: number;
+  }>;
 
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
@@ -169,6 +190,11 @@ User.init(
     car: {
       type: DataTypes.JSONB,
       allowNull: true,
+    },
+    notifications: {
+      // ✅ ДОБАВЛЕНО
+      type: DataTypes.JSONB,
+      defaultValue: [],
     },
   },
   {

@@ -146,6 +146,7 @@ export const register = async (req: Request, res: Response) => {
       rating: 0,
       isVerified: false,
       reviews: [],
+      notifications: [],
     });
 
     res.status(201).json({
@@ -236,7 +237,7 @@ export const login = async (req: Request, res: Response) => {
       success: true,
       message: "Вход выполнен успешно",
       data: {
-        token: token, // ✅ ТОЛЬКО ТОКЕН
+        token: token, // ТОЛЬКО ТОКЕН
       },
     });
   } catch (error: any) {
@@ -268,6 +269,7 @@ export const getMe = async (req: Request, res: Response) => {
           rating: user.rating,
           isVerified: user.isVerified,
           car: user.car,
+          notifications: user.notifications,
         },
       },
     });

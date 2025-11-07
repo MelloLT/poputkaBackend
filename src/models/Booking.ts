@@ -8,7 +8,7 @@ export interface BookingAttributes {
   passengerId: number;
   tripId: number;
   seats: number;
-  status: "confirmed" | "cancelled" | "pending";
+  status: "confirmed" | "cancelled" | "pending" | "rejected";
 }
 
 export interface BookingCreationAttributes
@@ -22,7 +22,11 @@ class Booking
   public passengerId!: number;
   public tripId!: number;
   public seats!: number;
-  public status!: "confirmed" | "cancelled" | "pending";
+  public status!: "confirmed" | "cancelled" | "pending" | "rejected";
+
+  // ДОБАВЛЯЕМ СВЯЗИ ДЛЯ TYPESCRIPT
+  public readonly passenger?: User;
+  public readonly trip?: Trip;
 
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
@@ -59,7 +63,7 @@ Booking.init(
       },
     },
     status: {
-      type: DataTypes.ENUM("confirmed", "cancelled", "pending"),
+      type: DataTypes.ENUM("confirmed", "cancelled", "pending", "rejected"),
       defaultValue: "pending",
     },
   },
