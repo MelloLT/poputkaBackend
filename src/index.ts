@@ -53,6 +53,32 @@ app.get("/", (req, res) => {
   });
 });
 
+app.post("/api/init-db", async (req, res) => {
+  try {
+    console.log("Starting database initialization...");
+
+    // Синхронизируем все модели
+    await sequelize.sync({ force: true });
+    console.log("Database synchronized");
+
+    // Запускаем сидер
+    const { seedData } = await import("./seeders/seedData");
+    await seedData();
+
+    console.log("Seed data completed");
+    res.json({
+      success: true,
+      message: "Database initialized with seed data",
+    });
+  } catch (error: any) {
+    console.error("Init DB error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
 // Health check
 app.get("/health", (req, res) => {
   res.json({
