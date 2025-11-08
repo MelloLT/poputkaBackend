@@ -1,28 +1,13 @@
 import { Sequelize } from "sequelize";
-import * as dotenv from "dotenv";
 
-dotenv.config();
-
-const getDatabaseUrl = () => {
-  if (process.env.DATABASE_URL) {
-    return process.env.DATABASE_URL;
-  }
-
-  // Локальная разработка
-  return `postgres://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`;
-};
-
-const sequelize = new Sequelize(getDatabaseUrl(), {
+const sequelize = new Sequelize(process.env.DATABASE_URL!, {
   dialect: "postgres",
   logging: false,
   dialectOptions: {
-    ssl:
-      process.env.NODE_ENV === "production"
-        ? {
-            require: true,
-            rejectUnauthorized: false,
-          }
-        : false,
+    ssl: {
+      require: true,
+      rejectUnauthorized: false,
+    },
   },
 });
 

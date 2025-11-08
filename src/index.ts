@@ -11,6 +11,8 @@ import bookingRoutes from "./routes/bookings";
 import uploadRoutes from "./routes/upload";
 import driverBookingsRoutes from "./routes/driverBookings";
 import mapRoutes from "./routes/map";
+import { config } from "dotenv";
+config();
 
 dotenv.config();
 
@@ -76,5 +78,11 @@ const startServer = async () => {
     console.error("Error connecting to PostgreSQL:", error);
   }
 };
+
+console.log("Environment check:");
+console.log("NODE_ENV:", process.env.NODE_ENV);
+console.log("PORT:", process.env.PORT);
+console.log("DATABASE_URL exists:", !!process.env.DATABASE_URL);
+console.log("DATABASE_URL length:", process.env.DATABASE_URL?.length);
 
 startServer();
