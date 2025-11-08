@@ -21,16 +21,24 @@ export const getCoordinates = async (
           q: cityName,
           format: "json",
           limit: 1,
+          countrycodes: "uz",
+          addressdetails: 1,
         },
       }
     );
 
     if (response.data && response.data.length > 0) {
-      return {
-        lat: parseFloat(response.data[0].lat),
-        lon: parseFloat(response.data[0].lon),
-      };
+      const result = response.data[0];
+
+      // Дополнительная проверка что найденный город действительно в Узбекистане
+      if (result.address && result.address.country_code === "uz") {
+        return {
+          lat: parseFloat(result.lat),
+          lon: parseFloat(result.lon),
+        };
+      }
     }
+
     return null;
   } catch (error) {
     console.error("Error getting coordinates:", error);
