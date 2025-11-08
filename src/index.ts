@@ -20,10 +20,7 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(
   cors({
-    origin: [
-      process.env.FRONTEND_URL || "https://pop-utka.vercel.app/",
-      "https://твой-фронтенд.vercel.app", // замени на реальный URL фронтенда
-    ],
+    origin: ["https://pop-utka.vercel.app", "http://localhost:5173"],
     credentials: true,
   })
 );
