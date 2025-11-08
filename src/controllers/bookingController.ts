@@ -23,7 +23,7 @@ export const createBooking = async (req: Request, res: Response) => {
       });
     }
 
-    // ✅ ПРОВЕРКА: нельзя бронировать если 0 мест
+    // ПРОВЕРКА: нельзя бронировать если 0 мест
     if (trip.availableSeats === 0) {
       return res.status(400).json({
         success: false,
