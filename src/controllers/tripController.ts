@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { Op } from "sequelize";
 import Trip from "../models/Trip";
 import User from "../models/User";
+import { getTripInfo } from "../services/mapService";
 
 export const getTrips = async (req: Request, res: Response) => {
   try {
@@ -198,7 +199,8 @@ export const createTrip = async (req: Request, res: Response) => {
       maxTwoBackSeats = false,
     } = req.body;
 
-    // Валидация обязательных полей
+    console.log("Создаем поездку для водителя:", driverId, req.body);
+
     const requiredFields = [
       "from",
       "to",
@@ -210,36 +212,32 @@ export const createTrip = async (req: Request, res: Response) => {
     const missingFields = requiredFields.filter((field) => !req.body[field]);
 
     if (missingFields.length > 0) {
-      console.log("5. Отсутствуют поля:", missingFields);
       return res.status(400).json({
         success: false,
         message: `Не заполнены обязательные поля: ${missingFields.join(", ")}`,
       });
     }
 
-    // Проверка формата времени
-    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
-    if (!timeRegex.test(departureTime)) {
-      console.log("6. Неверный формат времени:", departureTime);
-      return res.status(400).json({
-        success: false,
-        message: "Неверный формат времени. Используйте HH:mm (например: 14:30)",
-      });
-    }
-
-    // Проверка что поездка в будущем
     const tripDateTime = new Date(`${departureDate}T${departureTime}:00`);
     const now = new Date();
 
     if (tripDateTime <= now) {
-      console.log("10. Поездка в прошлом!");
       return res.status(400).json({
         success: false,
-        message: "Нельзя создать поездку с прошедшей датой или временем",
+        message: "Дата и время поездки должны быть в будущем",
       });
     }
 
-    const trip = await Trip.create({
+    // Автоматически рассчитываем информацию о маршруте
+    let tripInfo = null;
+    try {
+      tripInfo = await getTripInfo(from.cityKey, to.cityKey);
+      console.log("Calculated trip info:", tripInfo);
+    } catch (error) {
+      console.log("Could not calculate trip info, continuing without it");
+    }
+
+    const newTrip = await Trip.create({
       driverId,
       from,
       to,
@@ -251,9 +249,10 @@ export const createTrip = async (req: Request, res: Response) => {
       instantBooking: Boolean(instantBooking),
       maxTwoBackSeats: Boolean(maxTwoBackSeats),
       status: "active",
+      tripInfo: tripInfo || undefined,
     });
 
-    const tripWithDriver = await Trip.findByPk(trip.id, {
+    const tripWithDriver = await Trip.findByPk(newTrip.id, {
       include: [
         {
           model: User,
@@ -271,22 +270,18 @@ export const createTrip = async (req: Request, res: Response) => {
       ],
     });
 
+    console.log("Поездка создана, ID:", newTrip.id);
+
     res.status(201).json({
       success: true,
       message: "Поездка создана успешно",
       data: tripWithDriver,
     });
-  } catch (error: any) {
-    console.log("=== ОШИБКА В createTrip ===");
-    console.error("Тип ошибки:", typeof error);
-    console.error("Сообщение ошибки:", error.message);
-    console.error("Stack trace:", error.stack);
-    console.error("Полная ошибка:", JSON.stringify(error, null, 2));
-
+  } catch (error) {
+    console.error("Ошибка при создании поездки:", error);
     res.status(500).json({
       success: false,
       message: "Ошибка сервера при создании поездки",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };

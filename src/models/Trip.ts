@@ -7,6 +7,12 @@ export interface Location {
   address: string;
 }
 
+// Добавь этот интерфейс в начало файла
+export interface Coordinates {
+  lat: number;
+  lon: number;
+}
+
 export interface TripAttributes {
   id: number;
   driverId: number;
@@ -20,12 +26,25 @@ export interface TripAttributes {
   instantBooking: boolean;
   maxTwoBackSeats: boolean;
   status: "active" | "completed" | "cancelled";
+  tripInfo?: {
+    distance: number;
+    duration: number;
+    coordinates: {
+      from: Coordinates;
+      to: Coordinates;
+    };
+  };
 }
 
 export interface TripCreationAttributes
   extends Optional<
     TripAttributes,
-    "id" | "description" | "status" | "instantBooking" | "maxTwoBackSeats"
+    | "id"
+    | "description"
+    | "status"
+    | "instantBooking"
+    | "maxTwoBackSeats"
+    | "tripInfo"
   > {}
 
 class Trip
@@ -44,6 +63,14 @@ class Trip
   public instantBooking!: boolean;
   public maxTwoBackSeats!: boolean;
   public status!: "active" | "completed" | "cancelled";
+  public tripInfo?: {
+    distance: number;
+    duration: number;
+    coordinates: {
+      from: Coordinates;
+      to: Coordinates;
+    };
+  };
 
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
@@ -69,24 +96,10 @@ Trip.init(
     from: {
       type: DataTypes.JSONB,
       allowNull: false,
-      validate: {
-        isValidLocation(value: any) {
-          if (!value.cityKey || !value.address) {
-            throw new Error("Location must have city and address");
-          }
-        },
-      },
     },
     to: {
       type: DataTypes.JSONB,
       allowNull: false,
-      validate: {
-        isValidLocation(value: any) {
-          if (!value.cityKey || !value.address) {
-            throw new Error("Location must have city and address");
-          }
-        },
-      },
     },
     departureDate: {
       type: DataTypes.STRING,
@@ -126,6 +139,10 @@ Trip.init(
     status: {
       type: DataTypes.ENUM("active", "completed", "cancelled"),
       defaultValue: "active",
+    },
+    tripInfo: {
+      type: DataTypes.JSONB,
+      allowNull: true,
     },
   },
   {
