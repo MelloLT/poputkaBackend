@@ -29,7 +29,6 @@ interface UserAttributes {
     photos?: string[];
   };
   notifications: Array<{
-    // ✅ ДОБАВЛЕНО
     id: string;
     type: "success" | "error" | "info";
     title: string;
@@ -52,7 +51,7 @@ interface UserCreationAttributes
     | "car"
     | "verificationCode"
     | "verificationCodeExpires"
-    | "notifications" // ✅ ДОБАВЛЕНО
+    | "notifications"
   > {}
 
 class User
@@ -192,7 +191,6 @@ User.init(
       allowNull: true,
     },
     notifications: {
-      // ✅ ДОБАВЛЕНО
       type: DataTypes.JSONB,
       defaultValue: [],
     },
