@@ -11,7 +11,6 @@ interface UserAttributes {
   firstName: string;
   lastName: string;
   gender?: "male" | "female";
-  birthDate: string;
   avatar?: string | null;
   rating: number;
   isVerified: boolean;
@@ -67,7 +66,7 @@ class User
   public role!: "driver" | "passenger";
   public firstName!: string;
   public lastName!: string;
-  public birthDate!: string;
+  //public birthDate!: string;
   public gender?: "male" | "female";
   public avatar?: string | null;
   public rating!: number;
@@ -194,14 +193,6 @@ User.init(
     notifications: {
       type: DataTypes.JSONB,
       defaultValue: [],
-    },
-    birthDate: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      validate: {
-        notEmpty: true,
-        isDate: true,
-      },
     },
   },
   {
