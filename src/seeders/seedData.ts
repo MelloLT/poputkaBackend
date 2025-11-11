@@ -182,3 +182,5 @@ export const seedData = async () => {
 
 // Запускаем seed
 seedData();
+
+// npx ts-node src/seeders/seedData.ts
