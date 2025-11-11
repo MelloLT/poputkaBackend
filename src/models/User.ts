@@ -10,8 +10,8 @@ interface UserAttributes {
   role: "driver" | "passenger";
   firstName: string;
   lastName: string;
-  birthday?: string;
   gender?: "male" | "female";
+  birthDate: string;
   avatar?: string | null;
   rating: number;
   isVerified: boolean;
@@ -53,7 +53,6 @@ interface UserCreationAttributes
     | "verificationCode"
     | "verificationCodeExpires"
     | "notifications"
-    | "birthday"
   > {}
 
 class User
@@ -68,7 +67,7 @@ class User
   public role!: "driver" | "passenger";
   public firstName!: string;
   public lastName!: string;
-  public birthday?: string;
+  public birthDate!: string;
   public gender?: "male" | "female";
   public avatar?: string | null;
   public rating!: number;
@@ -102,22 +101,6 @@ class User
 
   get fullName(): string {
     return `${this.firstName} ${this.lastName}`;
-  }
-
-  get age(): number | null {
-    if (!this.birthday) return null;
-    const birthDate = new Date(this.birthday);
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-
-    if (
-      monthDiff < 0 ||
-      (monthDiff === 0 && today.getDate() < birthDate.getDate())
-    ) {
-      age--;
-    }
-    return age;
   }
 
   async comparePassword(candidatePassword: string): Promise<boolean> {
@@ -176,14 +159,6 @@ User.init(
         len: [2, 50],
       },
     },
-    birthday: {
-      type: DataTypes.DATEONLY, // Формат YYYY-MM-DD
-      allowNull: true,
-      validate: {
-        isDate: true,
-        isBefore: new Date().toISOString().split("T")[0],
-      },
-    },
     gender: {
       type: DataTypes.ENUM("male", "female"),
       allowNull: true,
@@ -219,6 +194,14 @@ User.init(
     notifications: {
       type: DataTypes.JSONB,
       defaultValue: [],
+    },
+    birthDate: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      validate: {
+        notEmpty: true,
+        isDate: true,
+      },
     },
   },
   {

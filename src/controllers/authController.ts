@@ -20,6 +20,7 @@ export const register = async (req: Request, res: Response) => {
       role,
       firstName,
       lastName,
+      birthDate,
       avatar,
       gender,
       car,
@@ -35,6 +36,7 @@ export const register = async (req: Request, res: Response) => {
       "gender",
       "firstName",
       "lastName",
+      "birthDate",
     ];
     const missingFields = requiredFields.filter((field) => !req.body[field]);
 
@@ -48,7 +50,7 @@ export const register = async (req: Request, res: Response) => {
 
     const validationErrors: string[] = [];
 
-    // 1. Валидация email
+    // Валидация email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const allowedDomains = [
       "gmail.com",
@@ -71,21 +73,40 @@ export const register = async (req: Request, res: Response) => {
       );
     }
 
-    // 2. Валидация phone
+    // Валидация phone
     const phoneRegex = /^\+?[0-9]{11,15}$/;
     if (!phoneRegex.test(phone.replace(/\s/g, ""))) {
       validationErrors.push("Неверный формат номера телефона");
     }
 
-    // 3. Валидация password
+    // Валидация password
     const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d._-]{10,18}$/;
     if (!passwordRegex.test(password)) {
       validationErrors.push(
         "Неверный формат пароля. Пароль должен содержать ластинские буквы и цифры, точки и тире"
       );
     }
+    // Валидация возраста
+    const birthDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!birthDateRegex.test(birthDate)) {
+      validationErrors.push(
+        "Неверный формат даты рождения. Используйте формат: ГГГГ-ММ-ДД"
+      );
+    } else {
+      const birthDateObj = new Date(birthDate);
+      const today = new Date();
+      const age = today.getFullYear() - birthDateObj.getFullYear();
 
-    // 4. Валидация имени и фамилии
+      if (age < 18) {
+        validationErrors.push("Вы должны быть старше 18 лет");
+      }
+
+      if (birthDateObj > today) {
+        validationErrors.push("Дата рождения не может быть в будущем");
+      }
+    }
+
+    // Валидация имени и фамилии
     const nameRegex = /^[A-Za-zА-Яа-яЁё\s]{1,20}$/;
     if (!nameRegex.test(firstName)) {
       validationErrors.push(
@@ -140,6 +161,7 @@ export const register = async (req: Request, res: Response) => {
       role,
       firstName,
       lastName,
+      birthDate,
       avatar: avatar || undefined,
       gender: gender || undefined,
       car: car || undefined,
@@ -161,6 +183,7 @@ export const register = async (req: Request, res: Response) => {
           role: user.role,
           firstName: user.firstName,
           lastName: user.lastName,
+          birthDate: user.birthDate,
           gender: user.gender,
           avatar: user.avatar,
           rating: user.rating,
