@@ -20,7 +20,7 @@ export const register = async (req: Request, res: Response) => {
       role,
       firstName,
       lastName,
-      birthDate,
+      //birthDate,
       avatar,
       gender,
       car,
@@ -36,7 +36,7 @@ export const register = async (req: Request, res: Response) => {
       "gender",
       "firstName",
       "lastName",
-      "birthDate",
+      //"birthDate",
     ];
     const missingFields = requiredFields.filter((field) => !req.body[field]);
 
@@ -87,24 +87,24 @@ export const register = async (req: Request, res: Response) => {
       );
     }
     // Валидация возраста
-    const birthDateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!birthDateRegex.test(birthDate)) {
-      validationErrors.push(
-        "Неверный формат даты рождения. Используйте формат: ГГГГ-ММ-ДД"
-      );
-    } else {
-      const birthDateObj = new Date(birthDate);
-      const today = new Date();
-      const age = today.getFullYear() - birthDateObj.getFullYear();
+    // const birthDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    // if (!birthDateRegex.test(birthDate)) {
+    //   validationErrors.push(
+    //     "Неверный формат даты рождения. Используйте формат: ГГГГ-ММ-ДД"
+    //   );
+    // } else {
+    //   const birthDateObj = new Date(birthDate);
+    //   const today = new Date();
+    //   const age = today.getFullYear() - birthDateObj.getFullYear();
 
-      if (age < 18) {
-        validationErrors.push("Вы должны быть старше 18 лет");
-      }
+    //   if (age < 18) {
+    //     validationErrors.push("Вы должны быть старше 18 лет");
+    //   }
 
-      if (birthDateObj > today) {
-        validationErrors.push("Дата рождения не может быть в будущем");
-      }
-    }
+    //   if (birthDateObj > today) {
+    //     validationErrors.push("Дата рождения не может быть в будущем");
+    //   }
+    // }
 
     // Валидация имени и фамилии
     const nameRegex = /^[A-Za-zА-Яа-яЁё\s]{1,20}$/;
@@ -161,7 +161,7 @@ export const register = async (req: Request, res: Response) => {
       role,
       firstName,
       lastName,
-      birthDate,
+      //birthDate,
       avatar: avatar || undefined,
       gender: gender || undefined,
       car: car || undefined,
@@ -183,7 +183,7 @@ export const register = async (req: Request, res: Response) => {
           role: user.role,
           firstName: user.firstName,
           lastName: user.lastName,
-          birthDate: user.birthDate,
+          //birthDate: user.birthDate,
           gender: user.gender,
           avatar: user.avatar,
           rating: user.rating,
