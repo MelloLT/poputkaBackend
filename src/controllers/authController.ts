@@ -36,7 +36,6 @@ export const register = async (req: Request, res: Response) => {
       "gender",
       "firstName",
       "lastName",
-      "birthDate",
     ];
     const missingFields = requiredFields.filter((field) => !req.body[field]);
 
@@ -180,7 +179,7 @@ export const register = async (req: Request, res: Response) => {
           role: user.role,
           firstName: user.firstName,
           lastName: user.lastName,
-          //birthDate: user.birthDate,
+          birthDate: user.birthDate,
           gender: user.gender,
           avatar: user.avatar,
           rating: user.rating,
