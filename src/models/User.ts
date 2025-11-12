@@ -10,6 +10,7 @@ interface UserAttributes {
   role: "driver" | "passenger";
   firstName: string;
   lastName: string;
+  birthDate: string;
   gender?: "male" | "female";
   avatar?: string | null;
   rating: number;
@@ -66,7 +67,7 @@ class User
   public role!: "driver" | "passenger";
   public firstName!: string;
   public lastName!: string;
-  //public birthDate!: string;
+  public birthDate!: string;
   public gender?: "male" | "female";
   public avatar?: string | null;
   public rating!: number;
@@ -156,6 +157,13 @@ User.init(
       allowNull: false,
       validate: {
         len: [2, 50],
+      },
+    },
+    birthDate: {
+      type: DataTypes.STRING, // или DataTypes.DATE если хотите Date тип
+      allowNull: false,
+      validate: {
+        isDate: true,
       },
     },
     gender: {
