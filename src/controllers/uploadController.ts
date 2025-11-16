@@ -22,7 +22,7 @@ export const uploadAvatar = async (req: Request, res: Response) => {
       success: true,
       message: "Аватар успешно загружен",
       data: {
-        avatar: fileUrl, // ✅ ТОЛЬКО НОВЫЙ URL АВАТАРА
+        avatar: fileUrl,
       },
     });
   } catch (error) {

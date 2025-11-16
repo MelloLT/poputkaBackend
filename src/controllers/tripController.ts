@@ -62,12 +62,11 @@ export const getTrips = async (req: Request, res: Response) => {
       };
     }
 
-    // ФИКС: Фильтр по дате (теперь сравниваем строки)
     if (date) {
       whereClause.departureDate = date.toString();
     }
 
-    // ФИКС: Фильтр по времени (сравниваем строки "HH:mm")
+    // Фильтр по времени (сравниваем строки "HH:mm")
     if (timeFrom || timeTo) {
       whereClause.departureTime = {};
       if (timeFrom) whereClause.departureTime[Op.gte] = timeFrom.toString();
@@ -107,7 +106,7 @@ export const getTrips = async (req: Request, res: Response) => {
       order: [
         ["departureDate", "ASC"],
         ["departureTime", "ASC"],
-      ], // ФИКС: сортировка
+      ],
     });
 
     console.log(`Найдено поездок: ${trips.length}`);

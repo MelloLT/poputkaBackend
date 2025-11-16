@@ -73,8 +73,6 @@ const startServer = async () => {
 
     app.listen(PORT, () => {
       console.log(`Server is running on http://localhost:${PORT}`);
-      console.log(`Cookies enabled: YES`);
-      console.log(`JWT Auth: YES`);
     });
   } catch (error) {
     console.error("Error connecting to PostgreSQL:", error);

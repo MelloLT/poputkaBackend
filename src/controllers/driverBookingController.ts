@@ -106,15 +106,15 @@ export const confirmBooking = async (req: Request, res: Response) => {
       });
     }
 
-    // Обновляем бронирование
+    // Обновить бронирование
     await booking.update({ status: "confirmed" });
 
-    // Обновляем количество свободных мест
+    // Обновить количество свободных мест
     await trip.update({
       availableSeats: trip.availableSeats - booking.seats,
     });
 
-    // ✅ Добавляем уведомление пассажиру
+    // Добавить уведомление пассажиру
     const passenger = await User.findByPk(booking.passengerId);
     if (passenger) {
       const newNotification = {
@@ -154,7 +154,7 @@ export const rejectBooking = async (req: Request, res: Response) => {
     const { bookingId } = req.params;
     const driverId = req.user!.id;
 
-    // Находим бронирование и проверяем что водитель владеет поездкой
+    // Нахождение бронирования и проверка что водитель владеет поездкой
     const booking = await Booking.findOne({
       where: { id: bookingId },
       include: [
@@ -181,10 +181,10 @@ export const rejectBooking = async (req: Request, res: Response) => {
       });
     }
 
-    // Обновляем бронирование
+    // Обновить бронирование
     await booking.update({ status: "rejected" });
 
-    // Добавляем уведомление пассажиру
+    // Добавление уведомление пассажиру
     const passenger = await User.findByPk(booking.passengerId);
     if (passenger) {
       // Получаем данные поездки для уведомления

@@ -30,7 +30,6 @@ export const getCoordinates = async (
     if (response.data && response.data.length > 0) {
       const result = response.data[0];
 
-      // Дополнительная проверка что найденный город действительно в Узбекистане
       if (result.address && result.address.country_code === "uz") {
         return {
           lat: parseFloat(result.lat),
@@ -93,8 +92,6 @@ export const getTripInfo = async (fromCity: string, toCity: string) => {
     if (!routeInfo) {
       throw new Error("Could not calculate route");
     }
-
-    // Возвращаем данные в формате который ожидает модель Trip
     return {
       distance: Math.round(routeInfo.distance / 1000), // км
       duration: Math.round(routeInfo.duration / 60), // минуты

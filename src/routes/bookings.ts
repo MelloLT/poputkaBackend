@@ -8,7 +8,6 @@ import { authMiddleware } from "../middleware/auth";
 
 const router = express.Router();
 
-// Все роуты бронирований требуют авторизации
 router.use(authMiddleware);
 
 router.post("/", createBooking);

@@ -160,7 +160,7 @@ User.init(
       },
     },
     birthDate: {
-      type: DataTypes.STRING, // или DataTypes.DATE если хотите Date тип
+      type: DataTypes.STRING,
       allowNull: false,
       validate: {
         isDate: true,

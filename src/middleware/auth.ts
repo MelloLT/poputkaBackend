@@ -32,7 +32,6 @@ export const authMiddleware = async (
       userRole: string;
     };
 
-    // НАЙТИ ПОЛЬЗОВАТЕЛЯ В БАЗЕ И СОХРАНИТЬ ВСЕ ДАННЫЕ
     const user = await User.findByPk(payload.userId, {
       attributes: {
         exclude: ["password", "verificationCode", "verificationCodeExpires"],

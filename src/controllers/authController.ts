@@ -115,7 +115,6 @@ export const register = async (req: Request, res: Response) => {
       );
     }
 
-    // Если есть ошибки валидации - возвращаем 422
     if (validationErrors.length > 0) {
       return res.status(422).json({
         success: false,
@@ -257,7 +256,7 @@ export const login = async (req: Request, res: Response) => {
       success: true,
       message: "Вход выполнен успешно",
       data: {
-        token: token, // ТОЛЬКО ТОКЕН
+        token: token,
       },
     });
   } catch (error: any) {

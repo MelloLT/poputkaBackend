@@ -6,11 +6,9 @@ dotenv.config();
 let databaseUrl;
 
 if (process.env.DATABASE_PUBLIC_URL || process.env.DATABASE_URL) {
-  // Используем Railway базу если есть URL
   databaseUrl = process.env.DATABASE_PUBLIC_URL || process.env.DATABASE_URL;
   console.log("Using Railway database");
 } else {
-  // Локальная база данных
   databaseUrl = `postgres://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`;
   console.log("Using local PostgreSQL database");
 }

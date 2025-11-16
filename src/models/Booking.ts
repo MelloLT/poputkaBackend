@@ -24,7 +24,6 @@ class Booking
   public seats!: number;
   public status!: "confirmed" | "cancelled" | "pending" | "rejected";
 
-  // ДОБАВЛЯЕМ СВЯЗИ ДЛЯ TYPESCRIPT
   public readonly passenger?: User;
   public readonly trip?: Trip;
 

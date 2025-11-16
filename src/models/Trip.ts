@@ -7,7 +7,6 @@ export interface Location {
   address: string;
 }
 
-// Добавь этот интерфейс в начало файла
 export interface Coordinates {
   lat: number;
   lon: number;
