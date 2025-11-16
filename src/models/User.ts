@@ -18,15 +18,17 @@ interface UserAttributes {
   avatar?: string | null;
   rating: number;
   isVerified: boolean;
+  emailVerified: boolean;
+  phoneVerified: boolean;
   verificationCode?: string;
   verificationCodeExpires?: Date;
   reviews: Array<{
     author: string;
-    authorId: string; // Изменено на string
+    authorId: string;
     text: string;
     rating: number;
     createdAt: Date;
-    tripId: string; // Изменено на string
+    tripId: string;
   }>;
   car?: {
     model: string;
@@ -61,6 +63,8 @@ interface UserCreationAttributes
     | "notifications"
     | "about"
     | "tripsCount"
+    | "emailVerified"
+    | "phoneVerified"
   > {}
 
 class User
@@ -82,15 +86,17 @@ class User
   public avatar?: string | null;
   public rating!: number;
   public isVerified!: boolean;
+  public emailVerified!: boolean;
+  public phoneVerified!: boolean;
   public verificationCode?: string;
   public verificationCodeExpires?: Date;
   public reviews!: Array<{
     author: string;
-    authorId: string; // Меняем на string
+    authorId: string;
     text: string;
     rating: number;
     createdAt: Date;
-    tripId: string; // Меняем на string
+    tripId: string;
   }>;
   public car?: {
     model: string;
@@ -126,7 +132,7 @@ User.init(
   {
     id: {
       type: DataTypes.STRING,
-      autoIncrement: true,
+      primaryKey: true,
       defaultValue: generateId,
     },
     username: {
@@ -175,9 +181,6 @@ User.init(
     birthDate: {
       type: DataTypes.STRING,
       allowNull: false,
-      validate: {
-        isDate: true,
-      },
     },
     about: {
       type: DataTypes.TEXT,
@@ -203,6 +206,14 @@ User.init(
       defaultValue: 0,
     },
     isVerified: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    emailVerified: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    phoneVerified: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },

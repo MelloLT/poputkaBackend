@@ -360,6 +360,13 @@ export const getDriverTripHistory = async (req: Request, res: Response) => {
     const driverId = req.user!.id;
     const { status = "completed" } = req.query;
 
+    console.log(
+      "Получаем историю поездок для водителя:",
+      driverId,
+      "статус:",
+      status
+    );
+
     const trips = await Trip.findAll({
       where: {
         driverId,
@@ -369,7 +376,15 @@ export const getDriverTripHistory = async (req: Request, res: Response) => {
         {
           model: User,
           as: "driver",
-          attributes: ["id", "firstName", "lastName", "avatar", "rating"],
+          attributes: [
+            "id",
+            "firstName",
+            "lastName",
+            "avatar",
+            "rating",
+            "tripsCount",
+            "car",
+          ],
         },
         {
           model: Booking,
@@ -386,19 +401,122 @@ export const getDriverTripHistory = async (req: Request, res: Response) => {
       order: [["departureDate", "DESC"]],
     });
 
+    console.log("Найдено поездок:", trips.length);
+
     res.json({
       success: true,
       data: trips,
       meta: {
         total: trips.length,
         role: "driver",
+        status: status,
       },
     });
   } catch (error: any) {
-    console.error("Ошибка получения истории поездок водителя:", error);
+    console.error("Ошибка получения истории поездок водителя:", error.message);
     res.status(500).json({
       success: false,
       message: "Ошибка сервера при получении истории поездок",
+    });
+  }
+};
+
+export const completeTrip = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const driverId = req.user!.id;
+
+    console.log("Завершаем поездку ID:", id, "для водителя:", driverId);
+
+    const trip = await Trip.findOne({
+      where: { id, driverId },
+    });
+
+    if (!trip) {
+      return res.status(404).json({
+        success: false,
+        message: "Поездка не найдена или у вас нет прав",
+      });
+    }
+
+    if (trip.status === "completed") {
+      return res.status(400).json({
+        success: false,
+        message: "Поездка уже завершена",
+      });
+    }
+
+    if (trip.status === "cancelled") {
+      return res.status(400).json({
+        success: false,
+        message: "Нельзя завершить отмененную поездку",
+      });
+    }
+
+    // Обновляем статус поездки
+    await trip.update({ status: "completed" });
+
+    // Увеличиваем счетчик поездок водителя
+    const driver = await User.findByPk(driverId);
+    if (driver) {
+      await driver.update({
+        tripsCount: (driver.tripsCount || 0) + 1,
+      });
+      console.log("Счетчик поездок водителя увеличен:", driver.tripsCount);
+    }
+
+    // Увеличиваем счетчик поездок всех пассажиров этой поездки
+    const bookings = await Booking.findAll({
+      where: {
+        tripId: id,
+        status: "confirmed",
+      },
+    });
+
+    console.log("Найдено подтвержденных броней:", bookings.length);
+
+    for (const booking of bookings) {
+      const passenger = await User.findByPk(booking.passengerId);
+      if (passenger) {
+        await passenger.update({
+          tripsCount: (passenger.tripsCount || 0) + 1,
+        });
+        console.log(
+          "Счетчик поездок пассажира увеличен:",
+          passenger.id,
+          passenger.tripsCount
+        );
+      }
+    }
+
+    // Получаем обновленную поездку с данными водителя
+    const updatedTrip = await Trip.findByPk(id, {
+      include: [
+        {
+          model: User,
+          as: "driver",
+          attributes: [
+            "id",
+            "firstName",
+            "lastName",
+            "avatar",
+            "rating",
+            "tripsCount",
+          ],
+        },
+      ],
+    });
+
+    res.json({
+      success: true,
+      message: "Поездка успешно завершена",
+      data: updatedTrip,
+    });
+  } catch (error: any) {
+    console.error("Ошибка при завершении поездки:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Ошибка сервера при завершении поездки",
     });
   }
 };

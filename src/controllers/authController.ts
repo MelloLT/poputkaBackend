@@ -82,7 +82,7 @@ export const register = async (req: Request, res: Response) => {
     const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d._-]{10,18}$/;
     if (!passwordRegex.test(password)) {
       validationErrors.push(
-        "Неверный формат пароля. Пароль должен содержать ластинские буквы и цифры, точки и тире"
+        "Неверный формат пароля. Пароль должен содержать латинские буквы и цифры, точки и тире"
       );
     }
     // Валидация возраста
@@ -118,12 +118,11 @@ export const register = async (req: Request, res: Response) => {
     if (validationErrors.length > 0) {
       return res.status(422).json({
         success: false,
-        message: "Ошибки валидации",
-        errors: validationErrors,
+        message: validationErrors.join(". "),
       });
     }
 
-    console.log("2. Проверка уникальности пользователя");
+    console.log("Проверка уникальности пользователя");
     const existingUser = await User.findOne({
       where: {
         [Op.or]: [{ username }, { email }, { phone }],
@@ -143,11 +142,11 @@ export const register = async (req: Request, res: Response) => {
       });
     }
 
-    console.log("3. Хэширование пароля");
+    console.log("Хэширование пароля");
     const salt = await bcrypt.genSalt(12);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    console.log("4. Создание пользователя в БД");
+    console.log("Создание пользователя в БД");
     const user = await User.create({
       username,
       email,
@@ -171,7 +170,7 @@ export const register = async (req: Request, res: Response) => {
       message: "Пользователь успешно зарегистрирован",
       data: {
         user: {
-          id: user.UserId,
+          id: user.id,
           username: user.username,
           email: user.email,
           phone: user.phone,
@@ -183,12 +182,14 @@ export const register = async (req: Request, res: Response) => {
           avatar: user.avatar,
           rating: user.rating,
           isVerified: user.isVerified,
+          emailVerified: user.emailVerified,
+          phoneVerified: user.phoneVerified,
           car: user.car,
         },
       },
     });
   } catch (error: any) {
-    console.log("=== ОШИБКА РЕГИСТРАЦИИ ===");
+    console.log("ОШИБКА РЕГИСТРАЦИИ");
     console.error("Тип ошибки:", typeof error);
     console.error("Сообщение ошибки:", error.message);
     console.error("Stack trace:", error.stack);
@@ -198,8 +199,7 @@ export const register = async (req: Request, res: Response) => {
       const validationErrors = error.errors.map((err: any) => err.message);
       return res.status(422).json({
         success: false,
-        message: "Ошибки валидации",
-        errors: validationErrors,
+        message: validationErrors.join(". "),
       });
     }
 
@@ -287,7 +287,10 @@ export const getMe = async (req: Request, res: Response) => {
           avatar: user.avatar,
           rating: user.rating,
           isVerified: user.isVerified,
+          emailVerified: user.emailVerified,
+          phoneVerified: user.phoneVerified,
           car: user.car,
+          about: user.about,
           notifications: user.notifications,
         },
       },

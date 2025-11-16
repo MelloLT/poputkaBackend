@@ -279,3 +279,75 @@ export const getPassengerTripHistory = async (req: Request, res: Response) => {
     });
   }
 };
+
+export const getPassengerActiveTrips = async (req: Request, res: Response) => {
+  try {
+    const passengerId = req.user!.id;
+
+    const bookings = await Booking.findAll({
+      where: {
+        passengerId,
+        status: "confirmed",
+      },
+      include: [
+        {
+          model: Trip,
+          as: "trip",
+          where: {
+            status: "active", // Только активные поездки
+          },
+          include: [
+            {
+              model: User,
+              as: "driver",
+              attributes: [
+                "id",
+                "firstName",
+                "lastName",
+                "avatar",
+                "rating",
+                "car",
+              ],
+            },
+          ],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+
+    const trips = bookings
+      .map((booking) => {
+        if (!booking.trip) return null;
+
+        return {
+          ...booking.trip.toJSON(),
+          bookingInfo: {
+            id: booking.id,
+            seats: booking.seats,
+            status: booking.status,
+            bookedAt: booking.createdAt,
+          },
+        };
+      })
+      .filter((trip) => trip !== null);
+
+    res.json({
+      success: true,
+      data: trips,
+      meta: {
+        total: trips.length,
+        role: "passenger",
+        status: "active",
+      },
+    });
+  } catch (error: any) {
+    console.error(
+      "Ошибка получения активных поездок пассажира:",
+      error.message
+    );
+    res.status(500).json({
+      success: false,
+      message: "Ошибка сервера при получении активных поездок",
+    });
+  }
+};

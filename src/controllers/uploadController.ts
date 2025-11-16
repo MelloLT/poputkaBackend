@@ -76,7 +76,7 @@ export const uploadCarPhotos = async (req: Request, res: Response) => {
       success: true,
       message: "Фотографии автомобиля успешно загружены",
       data: {
-        carPhotos: uploadedFiles, // ✅ ТОЛЬКО МАССИВ НОВЫХ ФОТО
+        carPhotos: uploadedFiles,
       },
     });
   } catch (error) {

@@ -12,6 +12,7 @@ import uploadRoutes from "./routes/upload";
 import driverBookingsRoutes from "./routes/driverBookings";
 import reviewRoutes from "./routes/reviews";
 import mapRoutes from "./routes/map";
+import { setupAssociations } from "./models/associations";
 import { config } from "dotenv";
 config();
 
@@ -21,6 +22,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
+app.use(express.json());
 app.use(
   cors({
     origin: ["https://pop-utka.vercel.app", "http://localhost:5173"],
@@ -29,8 +31,8 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
   })
 );
-app.use(express.json());
-app.use(cookieParser()); // Добавляем cookie-parser
+
+app.use(cookieParser());
 
 // Маршруты
 app.use("/auth", authRoutes);
@@ -70,6 +72,9 @@ const startServer = async () => {
     await sequelize.authenticate();
     console.log("Connected to PostgreSQL successfully");
 
+    // НАСТРОЙКА АССОЦИАЦИЙ ПЕРЕД СИНХРОНИЗАЦИЕЙ
+    setupAssociations();
+
     await sequelize.sync({ force: false });
     console.log("Database synchronized");
 
@@ -80,11 +85,5 @@ const startServer = async () => {
     console.error("Error connecting to PostgreSQL:", error);
   }
 };
-
-console.log("Environment check:");
-console.log("NODE_ENV:", process.env.NODE_ENV);
-console.log("PORT:", process.env.PORT);
-console.log("DATABASE_URL exists:", !!process.env.DATABASE_URL);
-console.log("DATABASE_URL length:", process.env.DATABASE_URL?.length);
 
 startServer();

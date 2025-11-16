@@ -221,3 +221,68 @@ export const rejectBooking = async (req: Request, res: Response) => {
     });
   }
 };
+
+export const getDriverTripHistory = async (req: Request, res: Response) => {
+  try {
+    const driverId = req.user!.id;
+    const { status = "completed" } = req.query;
+
+    console.log(
+      "Получаем историю поездок для водителя:",
+      driverId,
+      "статус:",
+      status
+    );
+
+    const trips = await Trip.findAll({
+      where: {
+        driverId,
+        status: status.toString(),
+      },
+      include: [
+        {
+          model: User,
+          as: "driver",
+          attributes: [
+            "id",
+            "firstName",
+            "lastName",
+            "avatar",
+            "rating",
+            "tripsCount",
+          ],
+        },
+        {
+          model: Booking,
+          as: "bookings",
+          include: [
+            {
+              model: User,
+              as: "passenger",
+              attributes: ["id", "firstName", "lastName", "avatar", "rating"],
+            },
+          ],
+        },
+      ],
+      order: [["departureDate", "DESC"]],
+    });
+
+    console.log("Найдено поездок:", trips.length);
+
+    res.json({
+      success: true,
+      data: trips,
+      meta: {
+        total: trips.length,
+        role: "driver",
+        status: status,
+      },
+    });
+  } catch (error: any) {
+    console.error("Ошибка получения истории поездок водителя:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Ошибка сервера при получении истории поездок",
+    });
+  }
+};

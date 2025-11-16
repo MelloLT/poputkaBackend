@@ -1,7 +1,6 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 import { generateTripId } from "../utils/idGenerator";
-import User from "./User";
 
 export interface Location {
   cityKey: string;
@@ -75,7 +74,9 @@ class Trip
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 
-  public driver?: User;
+  // Убрали явные объявления связей чтобы избежать циклических зависимостей
+  public driver?: any;
+  public bookings?: any[];
 }
 
 Trip.init(
@@ -88,10 +89,6 @@ Trip.init(
     driverId: {
       type: DataTypes.STRING,
       allowNull: false,
-      references: {
-        model: User,
-        key: "id",
-      },
     },
     from: {
       type: DataTypes.JSONB,
@@ -151,8 +148,5 @@ Trip.init(
     timestamps: true,
   }
 );
-
-Trip.belongsTo(User, { foreignKey: "driverId", as: "driver" });
-User.hasMany(Trip, { foreignKey: "driverId" });
 
 export default Trip;

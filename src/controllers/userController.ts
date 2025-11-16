@@ -32,7 +32,7 @@ export const getUsers = async (req: Request, res: Response) => {
     console.error("Ошибка при получении пользователей:", error);
     res.status(500).json({
       success: false,
-      message: "Ошибка сервера",
+      message: "Ошибка сервера при получении пользователей",
     });
   }
 };
@@ -41,10 +41,26 @@ export const getUsers = async (req: Request, res: Response) => {
 export const updateCar = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
+
+    console.log("User ID:", userId);
+    console.log("Request Body:", req.body);
+    console.log("Request Headers:", req.headers);
+    console.log("Content-Type:", req.headers["content-type"]);
+
     const { model, color, year, licensePlate } = req.body;
 
-    const requiredFields = ["model", "color", "year", "licensePlate"];
-    const missingFields = requiredFields.filter((field) => !req.body[field]);
+    if (!req.body || Object.keys(req.body).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Тело запроса пустое или не распарсено",
+      });
+    }
+
+    const missingFields = [];
+    if (!model) missingFields.push("model");
+    if (!color) missingFields.push("color");
+    if (!year) missingFields.push("year");
+    if (!licensePlate) missingFields.push("licensePlate");
 
     if (missingFields.length > 0) {
       return res.status(400).json({
@@ -69,20 +85,29 @@ export const updateCar = async (req: Request, res: Response) => {
     }
 
     const updatedCar = {
-      model: model.trim(),
-      color: color.trim(),
-      year: parseInt(year),
-      licensePlate: licensePlate.trim(),
+      model: model.toString().trim(),
+      color: color.toString().trim(),
+      year: parseInt(year.toString()),
+      licensePlate: licensePlate.toString().trim(),
       photos: user.car?.photos || [],
     };
 
     await user.update({ car: updatedCar });
+
+    // Получаем обновленного пользователя
+    const updatedUser = await User.findByPk(userId);
 
     res.json({
       success: true,
       message: "Данные автомобиля обновлены",
       data: {
         car: updatedCar,
+        user: {
+          id: updatedUser!.id,
+          firstName: updatedUser!.firstName,
+          lastName: updatedUser!.lastName,
+          car: updatedUser!.car,
+        },
       },
     });
   } catch (error: any) {
@@ -120,7 +145,7 @@ export const getUserById = async (req: Request, res: Response) => {
     console.error("Ошибка при получении пользователя:", error);
     res.status(500).json({
       success: false,
-      message: "Ошибка сервера",
+      message: "Ошибка сервера при получении пользователя",
     });
   }
 };
@@ -147,7 +172,7 @@ export const getDrivers = async (req: Request, res: Response) => {
     console.error("Ошибка при получении водителей:", error);
     res.status(500).json({
       success: false,
-      message: "Ошибка сервера",
+      message: "Ошибка сервера при получении водителей",
     });
   }
 };
@@ -160,7 +185,7 @@ export const updateUser = async (req: Request, res: Response) => {
     const updateData = req.body;
 
     // Пользователь может обновлять только свой профиль
-    if (req.user!.id !== userId) {
+    if (req.user!.id !== id) {
       return res.status(403).json({
         success: false,
         message: "Вы можете редактировать только свой профиль",
@@ -197,7 +222,7 @@ export const updateUser = async (req: Request, res: Response) => {
     console.error("Ошибка при обновлении пользователя:", error);
     res.status(500).json({
       success: false,
-      message: "Ошибка сервера",
+      message: "Ошибка сервера при обновлении пользователя",
     });
   }
 };
@@ -245,7 +270,7 @@ export const updateProfile = async (req: Request, res: Response) => {
   }
 };
 
-export const incrementTripsCount = async (userId: number) => {
+export const incrementTripsCount = async (userId: string) => {
   try {
     const user = await User.findByPk(userId);
     if (user) {
