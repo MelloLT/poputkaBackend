@@ -6,7 +6,7 @@ import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
-const generateToken = (userId: number, userRole: string) => {
+const generateToken = (userId: string, userRole: string) => {
   return jwt.sign({ userId, userRole }, JWT_SECRET, { expiresIn: "7d" });
 };
 
@@ -171,7 +171,7 @@ export const register = async (req: Request, res: Response) => {
       message: "Пользователь успешно зарегистрирован",
       data: {
         user: {
-          id: user.id,
+          id: user.UserId,
           username: user.username,
           email: user.email,
           phone: user.phone,

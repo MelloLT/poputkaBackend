@@ -1,12 +1,13 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 import User from "./User";
+import { generateBookingId } from "../utils/idGenerator";
 import Trip from "./Trip";
 
 export interface BookingAttributes {
-  id: number;
-  passengerId: number;
-  tripId: number;
+  id: string;
+  passengerId: string;
+  tripId: string;
   seats: number;
   status: "confirmed" | "cancelled" | "pending" | "rejected";
 }
@@ -18,9 +19,9 @@ class Booking
   extends Model<BookingAttributes, BookingCreationAttributes>
   implements BookingAttributes
 {
-  public id!: number;
-  public passengerId!: number;
-  public tripId!: number;
+  public id!: string;
+  public passengerId!: string;
+  public tripId!: string;
   public seats!: number;
   public status!: "confirmed" | "cancelled" | "pending" | "rejected";
 
@@ -34,12 +35,12 @@ class Booking
 Booking.init(
   {
     id: {
-      type: DataTypes.INTEGER,
-      autoIncrement: true,
+      type: DataTypes.STRING,
       primaryKey: true,
+      defaultValue: generateBookingId,
     },
     passengerId: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.STRING,
       allowNull: false,
       references: {
         model: User,
@@ -47,7 +48,7 @@ Booking.init(
       },
     },
     tripId: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.STRING,
       allowNull: false,
       references: {
         model: Trip,

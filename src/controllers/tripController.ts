@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { Op } from "sequelize";
 import Trip from "../models/Trip";
 import User from "../models/User";
+import Booking from "../models/Booking";
 import { getTripInfo } from "../services/mapService";
 
 export const getTrips = async (req: Request, res: Response) => {
@@ -237,7 +238,7 @@ export const createTrip = async (req: Request, res: Response) => {
     }
 
     const newTrip = await Trip.create({
-      driverId,
+      driverId: driverId.toString(), // Конвертируем в string
       from,
       to,
       departureDate,
@@ -349,6 +350,55 @@ export const deleteTrip = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: "Ошибка сервера при удалении поездки",
+    });
+  }
+};
+
+// История поезок для водителей и пассажиров
+export const getDriverTripHistory = async (req: Request, res: Response) => {
+  try {
+    const driverId = req.user!.id;
+    const { status = "completed" } = req.query;
+
+    const trips = await Trip.findAll({
+      where: {
+        driverId,
+        status: status.toString(),
+      },
+      include: [
+        {
+          model: User,
+          as: "driver",
+          attributes: ["id", "firstName", "lastName", "avatar", "rating"],
+        },
+        {
+          model: Booking,
+          as: "bookings",
+          include: [
+            {
+              model: User,
+              as: "passenger",
+              attributes: ["id", "firstName", "lastName", "avatar", "rating"],
+            },
+          ],
+        },
+      ],
+      order: [["departureDate", "DESC"]],
+    });
+
+    res.json({
+      success: true,
+      data: trips,
+      meta: {
+        total: trips.length,
+        role: "driver",
+      },
+    });
+  } catch (error: any) {
+    console.error("Ошибка получения истории поездок водителя:", error);
+    res.status(500).json({
+      success: false,
+      message: "Ошибка сервера при получении истории поездок",
     });
   }
 };

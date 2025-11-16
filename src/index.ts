@@ -10,6 +10,7 @@ import userRoutes from "./routes/users";
 import bookingRoutes from "./routes/bookings";
 import uploadRoutes from "./routes/upload";
 import driverBookingsRoutes from "./routes/driverBookings";
+import reviewRoutes from "./routes/reviews";
 import mapRoutes from "./routes/map";
 import { config } from "dotenv";
 config();
@@ -41,6 +42,7 @@ app.use("/uploads", express.static("src/uploads"));
 app.use("/upload", uploadRoutes);
 app.use("/driver/bookings", driverBookingsRoutes);
 app.use("/map", mapRoutes);
+app.use("/reviews", reviewRoutes);
 
 // Базовые эндпоинты
 app.get("/", (req, res) => {

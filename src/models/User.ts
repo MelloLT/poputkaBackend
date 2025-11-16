@@ -1,8 +1,9 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
+import { generateId } from "../utils/idGenerator";
 
 interface UserAttributes {
-  id: number;
+  id: string;
   username: string;
   email: string;
   phone: string;
@@ -11,6 +12,8 @@ interface UserAttributes {
   firstName: string;
   lastName: string;
   birthDate: string;
+  about?: string;
+  tripsCount: number;
   gender?: "male" | "female";
   avatar?: string | null;
   rating: number;
@@ -19,8 +22,11 @@ interface UserAttributes {
   verificationCodeExpires?: Date;
   reviews: Array<{
     author: string;
+    authorId: string; // Изменено на string
     text: string;
     rating: number;
+    createdAt: Date;
+    tripId: string; // Изменено на string
   }>;
   car?: {
     model: string;
@@ -36,7 +42,7 @@ interface UserAttributes {
     message: string;
     isRead: boolean;
     createdAt: Date;
-    relatedBookingId?: number;
+    relatedBookingId?: string;
   }>;
 }
 
@@ -53,13 +59,15 @@ interface UserCreationAttributes
     | "verificationCode"
     | "verificationCodeExpires"
     | "notifications"
+    | "about"
+    | "tripsCount"
   > {}
 
 class User
   extends Model<UserAttributes, UserCreationAttributes>
   implements UserAttributes
 {
-  public id!: number;
+  public id!: string;
   public username!: string;
   public email!: string;
   public phone!: string;
@@ -68,6 +76,8 @@ class User
   public firstName!: string;
   public lastName!: string;
   public birthDate!: string;
+  public about?: string;
+  public tripsCount!: number;
   public gender?: "male" | "female";
   public avatar?: string | null;
   public rating!: number;
@@ -76,8 +86,11 @@ class User
   public verificationCodeExpires?: Date;
   public reviews!: Array<{
     author: string;
+    authorId: string; // Меняем на string
     text: string;
     rating: number;
+    createdAt: Date;
+    tripId: string; // Меняем на string
   }>;
   public car?: {
     model: string;
@@ -93,7 +106,7 @@ class User
     message: string;
     isRead: boolean;
     createdAt: Date;
-    relatedBookingId?: number;
+    relatedBookingId?: string;
   }>;
 
   public readonly createdAt!: Date;
@@ -112,9 +125,9 @@ class User
 User.init(
   {
     id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.STRING,
       autoIncrement: true,
-      primaryKey: true,
+      defaultValue: generateId,
     },
     username: {
       type: DataTypes.STRING,
@@ -165,6 +178,17 @@ User.init(
       validate: {
         isDate: true,
       },
+    },
+    about: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      validate: {
+        len: [0, 1000],
+      },
+    },
+    tripsCount: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0,
     },
     gender: {
       type: DataTypes.ENUM("male", "female"),

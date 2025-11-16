@@ -1,5 +1,6 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
+import { generateTripId } from "../utils/idGenerator";
 import User from "./User";
 
 export interface Location {
@@ -13,8 +14,8 @@ export interface Coordinates {
 }
 
 export interface TripAttributes {
-  id: number;
-  driverId: number;
+  id: string;
+  driverId: string;
   from: Location;
   to: Location;
   departureDate: string;
@@ -50,8 +51,8 @@ class Trip
   extends Model<TripAttributes, TripCreationAttributes>
   implements TripAttributes
 {
-  public id!: number;
-  public driverId!: number;
+  public id!: string;
+  public driverId!: string;
   public from!: Location;
   public to!: Location;
   public departureDate!: string;
@@ -80,12 +81,12 @@ class Trip
 Trip.init(
   {
     id: {
-      type: DataTypes.INTEGER,
-      autoIncrement: true,
+      type: DataTypes.STRING,
       primaryKey: true,
+      defaultValue: generateTripId,
     },
     driverId: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.STRING,
       allowNull: false,
       references: {
         model: User,

@@ -28,7 +28,7 @@ export const authMiddleware = async (
     }
 
     const payload = jwt.verify(token, JWT_SECRET) as {
-      userId: number;
+      userId: string;
       userRole: string;
     };
 

@@ -37,6 +37,63 @@ export const getUsers = async (req: Request, res: Response) => {
   }
 };
 
+// Добавление и редактирование тачки
+export const updateCar = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { model, color, year, licensePlate } = req.body;
+
+    const requiredFields = ["model", "color", "year", "licensePlate"];
+    const missingFields = requiredFields.filter((field) => !req.body[field]);
+
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Не заполнены обязательные поля: ${missingFields.join(", ")}`,
+      });
+    }
+
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Пользователь не найден",
+      });
+    }
+
+    if (user.role !== "driver") {
+      return res.status(403).json({
+        success: false,
+        message: "Только водители могут добавлять автомобиль",
+      });
+    }
+
+    const updatedCar = {
+      model: model.trim(),
+      color: color.trim(),
+      year: parseInt(year),
+      licensePlate: licensePlate.trim(),
+      photos: user.car?.photos || [],
+    };
+
+    await user.update({ car: updatedCar });
+
+    res.json({
+      success: true,
+      message: "Данные автомобиля обновлены",
+      data: {
+        car: updatedCar,
+      },
+    });
+  } catch (error: any) {
+    console.error("Ошибка обновления автомобиля:", error);
+    res.status(500).json({
+      success: false,
+      message: "Ошибка сервера при обновлении автомобиля",
+    });
+  }
+};
+
 // Получить пользователя по ID
 export const getUserById = async (req: Request, res: Response) => {
   try {
@@ -103,10 +160,10 @@ export const updateUser = async (req: Request, res: Response) => {
     const updateData = req.body;
 
     // Пользователь может обновлять только свой профиль
-    if (parseInt(id) !== userId) {
+    if (req.user!.id !== userId) {
       return res.status(403).json({
         success: false,
-        message: "Вы можете обновлять только свой профиль",
+        message: "Вы можете редактировать только свой профиль",
       });
     }
 
@@ -142,5 +199,61 @@ export const updateUser = async (req: Request, res: Response) => {
       success: false,
       message: "Ошибка сервера",
     });
+  }
+};
+
+export const updateProfile = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { about, firstName, lastName, gender } = req.body;
+
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Пользователь не найден",
+      });
+    }
+
+    const updateData: any = {};
+    if (about !== undefined) updateData.about = about;
+    if (firstName !== undefined) updateData.firstName = firstName;
+    if (lastName !== undefined) updateData.lastName = lastName;
+    if (gender !== undefined) updateData.gender = gender;
+
+    await user.update(updateData);
+
+    res.json({
+      success: true,
+      message: "Профиль обновлен успешно",
+      data: {
+        user: {
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          about: user.about,
+          gender: user.gender,
+        },
+      },
+    });
+  } catch (error: any) {
+    console.error("Ошибка обновления профиля:", error);
+    res.status(500).json({
+      success: false,
+      message: "Ошибка сервера при обновлении профиля",
+    });
+  }
+};
+
+export const incrementTripsCount = async (userId: number) => {
+  try {
+    const user = await User.findByPk(userId);
+    if (user) {
+      await user.update({
+        tripsCount: (user.tripsCount || 0) + 1,
+      });
+    }
+  } catch (error) {
+    console.error("Ошибка увеличения счетчика поездок:", error);
   }
 };

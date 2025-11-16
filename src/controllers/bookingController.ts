@@ -52,7 +52,7 @@ export const createBooking = async (req: Request, res: Response) => {
     }
 
     const booking = await Booking.create({
-      passengerId,
+      passengerId: req.user!.id,
       tripId,
       seats: parseInt(seats),
       status: bookingStatus,
@@ -211,6 +211,71 @@ export const cancelBooking = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: "Ошибка сервера при отмене брони",
+    });
+  }
+};
+
+export const getPassengerTripHistory = async (req: Request, res: Response) => {
+  try {
+    const passengerId = req.user!.id;
+    const { status = "confirmed" } = req.query;
+
+    const bookings = await Booking.findAll({
+      where: {
+        passengerId,
+        status: status.toString(),
+      },
+      include: [
+        {
+          model: Trip,
+          as: "trip",
+          include: [
+            {
+              model: User,
+              as: "driver",
+              attributes: [
+                "id",
+                "firstName",
+                "lastName",
+                "avatar",
+                "rating",
+                "car",
+              ],
+            },
+          ],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+
+    const trips = bookings
+      .map((booking) => {
+        if (!booking.trip) return null;
+
+        return {
+          ...booking.trip.toJSON(),
+          bookingInfo: {
+            seats: booking.seats,
+            status: booking.status,
+            bookedAt: booking.createdAt,
+          },
+        };
+      })
+      .filter((trip) => trip !== null);
+
+    res.json({
+      success: true,
+      data: trips,
+      meta: {
+        total: trips.length,
+        role: "passenger",
+      },
+    });
+  } catch (error: any) {
+    console.error("Ошибка получения истории поездок пассажира:", error);
+    res.status(500).json({
+      success: false,
+      message: "Ошибка сервера при получении истории поездок",
     });
   }
 };
