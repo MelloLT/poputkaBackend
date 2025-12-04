@@ -3,6 +3,49 @@ import Booking from "../models/Booking";
 import Trip from "../models/Trip";
 import User from "../models/User";
 
+// Вспомогательная функция для добавления уведомлений
+const addNotification = async (
+  userId: string,
+  type:
+    | "booking_request"
+    | "booking_confirmed"
+    | "booking_rejected"
+    | "info"
+    | "success"
+    | "error",
+  title: string,
+  message: string,
+  relatedBookingId?: string
+) => {
+  try {
+    const user = await User.findByPk(userId);
+    if (!user) return;
+
+    const newNotification = {
+      id: `NT${Date.now()}${Math.random().toString(36).substr(2, 9)}`,
+      type,
+      title,
+      message,
+      isRead: false,
+      createdAt: new Date(),
+      relatedBookingId,
+    };
+
+    const updatedNotifications = [
+      newNotification,
+      ...(user.notifications || []),
+    ];
+
+    // Ограничиваем количество хранимых уведомлений (последние 100)
+    const limitedNotifications = updatedNotifications.slice(0, 100);
+
+    await user.update({ notifications: limitedNotifications });
+    console.log(`Уведомление добавлено пользователю ${userId}: ${title}`);
+  } catch (error) {
+    console.error("Ошибка добавления уведомления:", error);
+  }
+};
+
 export const createBooking = async (req: Request, res: Response) => {
   try {
     const passengerId = req.user!.id;
@@ -58,46 +101,7 @@ export const createBooking = async (req: Request, res: Response) => {
       status: bookingStatus,
     });
 
-    // Добавляем уведомление пассажиру
-    const passenger = await User.findByPk(passengerId);
-    if (passenger && trip.instantBooking) {
-      const newNotification = {
-        id: Date.now().toString(),
-        type: "success" as const,
-        title: "Бронь создана",
-        message: `Вы забронировали поездку ${trip.from.cityKey} → ${trip.to.cityKey}`,
-        isRead: false,
-        createdAt: new Date(),
-        relatedBookingId: booking.id,
-      };
-
-      const updatedNotifications = [
-        ...(passenger.notifications || []),
-        newNotification,
-      ];
-      await passenger.update({ notifications: updatedNotifications });
-    }
-
-    // Добавляем уведомление водителю о новой брони
-    const driver = await User.findByPk(trip.driverId);
-    if (driver && !trip.instantBooking) {
-      const newNotification = {
-        id: Date.now().toString(),
-        type: "info" as const,
-        title: "Новая бронь",
-        message: `Пассажир хочет забронировать ${seats} мест в вашей поездке`,
-        isRead: false,
-        createdAt: new Date(),
-        relatedBookingId: booking.id,
-      };
-
-      const updatedNotifications = [
-        ...(driver.notifications || []),
-        newNotification,
-      ];
-      await driver.update({ notifications: updatedNotifications });
-    }
-
+    // Получаем обновленные данные для уведомлений
     const bookingWithDetails = await Booking.findByPk(booking.id, {
       include: [
         {
@@ -118,6 +122,48 @@ export const createBooking = async (req: Request, res: Response) => {
         },
       ],
     });
+
+    // Добавляем уведомление пассажиру
+    if (trip.instantBooking) {
+      await addNotification(
+        passengerId,
+        "booking_confirmed",
+        "Бронь создана",
+        `Вы забронировали ${seats} место(а) в поездке ${trip.from.cityKey} → ${trip.to.cityKey}. Поездка подтверждена автоматически.`,
+        booking.id
+      );
+    } else {
+      await addNotification(
+        passengerId,
+        "booking_request",
+        "Запрос отправлен",
+        `Ваш запрос на бронирование ${seats} места(а) в поездке ${trip.from.cityKey} → ${trip.to.cityKey} отправлен водителю. Ожидайте подтверждения.`,
+        booking.id
+      );
+    }
+
+    // Добавляем уведомление водителю
+    if (!trip.instantBooking) {
+      await addNotification(
+        trip.driverId,
+        "booking_request",
+        "Новый запрос на бронирование",
+        `${req.user!.firstName} ${
+          req.user!.lastName
+        } хочет забронировать ${seats} место(а) в вашей поездке.`,
+        booking.id
+      );
+    } else {
+      await addNotification(
+        trip.driverId,
+        "booking_confirmed",
+        "Автоматическое бронирование",
+        `${req.user!.firstName} ${
+          req.user!.lastName
+        } забронировал(а) ${seats} место(а) в вашей поездке через мгновенное бронирование.`,
+        booking.id
+      );
+    }
 
     res.status(201).json({
       success: true,
@@ -177,6 +223,83 @@ export const getMyBookings = async (req: Request, res: Response) => {
   }
 };
 
+export const getBookingById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user!.id;
+
+    const booking = await Booking.findByPk(id, {
+      include: [
+        {
+          model: Trip,
+          as: "trip",
+          include: [
+            {
+              model: User,
+              as: "driver",
+              attributes: [
+                "id",
+                "firstName",
+                "lastName",
+                "avatar",
+                "rating",
+                "car",
+                "telegram",
+                "phone",
+                "phoneVerified",
+              ],
+            },
+          ],
+        },
+        {
+          model: User,
+          as: "passenger",
+          attributes: [
+            "id",
+            "firstName",
+            "lastName",
+            "avatar",
+            "rating",
+            "telegram",
+            "phone",
+            "phoneVerified",
+          ],
+        },
+      ],
+    });
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: "Бронирование не найдено",
+      });
+    }
+
+    // Проверяем, что пользователь имеет доступ к этому бронированию
+    const isDriver =
+      req.user!.role === "driver" && booking.trip?.driverId === userId;
+    const isPassenger = booking.passengerId === userId;
+
+    if (!isDriver && !isPassenger) {
+      return res.status(403).json({
+        success: false,
+        message: "У вас нет доступа к этому бронированию",
+      });
+    }
+
+    res.json({
+      success: true,
+      data: booking,
+    });
+  } catch (error: any) {
+    console.error("Ошибка при получении бронирования:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Ошибка сервера при получении бронирования",
+    });
+  }
+};
+
 export const cancelBooking = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -201,6 +324,30 @@ export const cancelBooking = async (req: Request, res: Response) => {
     }
 
     await booking.update({ status: "cancelled" });
+
+    // Добавляем уведомление водителю об отмене
+    if (trip) {
+      await addNotification(
+        trip.driverId,
+        "booking_rejected",
+        "Бронь отменена",
+        `${req.user!.firstName} ${
+          req.user!.lastName
+        } отменил(а) бронирование на ${
+          booking.seats
+        } место(а) в вашей поездке.`,
+        booking.id
+      );
+    }
+
+    // Добавляем уведомление пассажиру
+    await addNotification(
+      passengerId,
+      "info",
+      "Бронь отменена",
+      `Вы отменили бронирование на ${booking.seats} место(а) в поездке ${trip?.from.cityKey} → ${trip?.to.cityKey}.`,
+      booking.id
+    );
 
     res.json({
       success: true,

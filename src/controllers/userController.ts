@@ -230,7 +230,7 @@ export const updateUser = async (req: Request, res: Response) => {
 export const updateProfile = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const { about, firstName, lastName, gender } = req.body;
+    const { about, firstName, lastName, gender, telegram } = req.body;
 
     const user = await User.findByPk(userId);
     if (!user) {
@@ -245,6 +245,7 @@ export const updateProfile = async (req: Request, res: Response) => {
     if (firstName !== undefined) updateData.firstName = firstName;
     if (lastName !== undefined) updateData.lastName = lastName;
     if (gender !== undefined) updateData.gender = gender;
+    if (telegram !== undefined) updateData.telegram = telegram; // Добавляем telegram
 
     await user.update(updateData);
 
@@ -258,6 +259,7 @@ export const updateProfile = async (req: Request, res: Response) => {
           lastName: user.lastName,
           about: user.about,
           gender: user.gender,
+          telegram: user.telegram, // Возвращаем telegram
         },
       },
     });
@@ -267,18 +269,5 @@ export const updateProfile = async (req: Request, res: Response) => {
       success: false,
       message: "Ошибка сервера при обновлении профиля",
     });
-  }
-};
-
-export const incrementTripsCount = async (userId: string) => {
-  try {
-    const user = await User.findByPk(userId);
-    if (user) {
-      await user.update({
-        tripsCount: (user.tripsCount || 0) + 1,
-      });
-    }
-  } catch (error) {
-    console.error("Ошибка увеличения счетчика поездок:", error);
   }
 };

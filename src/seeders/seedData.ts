@@ -25,6 +25,7 @@ export const seedData = async () => {
       firstName: "Алишер",
       lastName: "Усманов",
       birthDate: "1990-05-15",
+      telegram: "@alisher_driver",
       about:
         "Опытный водитель с 5-летним стажем. Комфортные поездки по Узбекистану.",
       tripsCount: 47,
@@ -55,6 +56,7 @@ export const seedData = async () => {
       firstName: "Дилбар",
       lastName: "Ахмедова",
       birthDate: "1985-08-22",
+      telegram: "@baryga",
       about:
         "Безопасные поездки для всех пассажиров. Особые условия для женщин.",
       tripsCount: 32,
@@ -85,6 +87,7 @@ export const seedData = async () => {
       firstName: "Сарвар",
       lastName: "Каримов",
       birthDate: "1995-12-10",
+      telegram: "@zavoz",
       about: "Часто путешествую между городами. Ценю комфорт и пунктуальность.",
       tripsCount: 15,
       gender: "male",

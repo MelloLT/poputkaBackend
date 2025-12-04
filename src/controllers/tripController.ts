@@ -4,6 +4,7 @@ import Trip from "../models/Trip";
 import User from "../models/User";
 import Booking from "../models/Booking";
 import { getTripInfo } from "../services/mapService";
+import { isValidCityKey } from "../utils/cityValidator";
 
 export const getTrips = async (req: Request, res: Response) => {
   try {
@@ -19,7 +20,7 @@ export const getTrips = async (req: Request, res: Response) => {
       driverGender,
     } = req.query;
 
-    console.log("📋 Фильтры запроса:", {
+    console.log("Фильтры запроса:", {
       from,
       to,
       date,
@@ -105,6 +106,7 @@ export const getTrips = async (req: Request, res: Response) => {
       where: whereClause,
       include: includeClause,
       order: [
+        ["createdAt", "DESC"],
         ["departureDate", "ASC"],
         ["departureTime", "ASC"],
       ],
@@ -215,6 +217,20 @@ export const createTrip = async (req: Request, res: Response) => {
       return res.status(400).json({
         success: false,
         message: `Не заполнены обязательные поля: ${missingFields.join(", ")}`,
+      });
+    }
+
+    if (!isValidCityKey(from.cityKey)) {
+      return res.status(400).json({
+        success: false,
+        message: `Неверный город отправления: ${from.cityKey}`,
+      });
+    }
+
+    if (!isValidCityKey(to.cityKey)) {
+      return res.status(400).json({
+        success: false,
+        message: `Неверный город назначения: ${to.cityKey}`,
       });
     }
 

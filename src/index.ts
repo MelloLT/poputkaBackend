@@ -14,6 +14,7 @@ import reviewRoutes from "./routes/reviews";
 import mapRoutes from "./routes/map";
 import { setupAssociations } from "./models/associations";
 import { config } from "dotenv";
+import notificationRoutes from "./routes/notifications";
 config();
 
 dotenv.config();
@@ -45,6 +46,7 @@ app.use("/upload", uploadRoutes);
 app.use("/driver/bookings", driverBookingsRoutes);
 app.use("/map", mapRoutes);
 app.use("/reviews", reviewRoutes);
+app.use("/notifications", notificationRoutes);
 
 // Базовые эндпоинты
 app.get("/", (req, res) => {

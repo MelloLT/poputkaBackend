@@ -12,6 +12,7 @@ interface UserAttributes {
   firstName: string;
   lastName: string;
   birthDate: string;
+  telegram?: string;
   about?: string;
   tripsCount: number;
   gender?: "male" | "female";
@@ -39,7 +40,13 @@ interface UserAttributes {
   };
   notifications: Array<{
     id: string;
-    type: "success" | "error" | "info";
+    type:
+      | "booking_request"
+      | "booking_confirmed"
+      | "booking_rejected"
+      | "info"
+      | "success"
+      | "error";
     title: string;
     message: string;
     isRead: boolean;
@@ -65,6 +72,7 @@ interface UserCreationAttributes
     | "tripsCount"
     | "emailVerified"
     | "phoneVerified"
+    | "telegram"
   > {}
 
 class User
@@ -80,6 +88,7 @@ class User
   public firstName!: string;
   public lastName!: string;
   public birthDate!: string;
+  public telegram?: string;
   public about?: string;
   public tripsCount!: number;
   public gender?: "male" | "female";
@@ -107,7 +116,13 @@ class User
   };
   public notifications!: Array<{
     id: string;
-    type: "success" | "error" | "info";
+    type:
+      | "booking_request"
+      | "booking_confirmed"
+      | "booking_rejected"
+      | "info"
+      | "success"
+      | "error";
     title: string;
     message: string;
     isRead: boolean;
@@ -182,6 +197,13 @@ User.init(
       type: DataTypes.STRING,
       allowNull: false,
     },
+    telegram: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      validate: {
+        is: /^@?[a-zA-Z0-9_]{5,32}$/,
+      },
+    },
     about: {
       type: DataTypes.TEXT,
       allowNull: true,
@@ -203,7 +225,7 @@ User.init(
     },
     rating: {
       type: DataTypes.FLOAT,
-      defaultValue: 0,
+      defaultValue: 1.0,
     },
     isVerified: {
       type: DataTypes.BOOLEAN,
