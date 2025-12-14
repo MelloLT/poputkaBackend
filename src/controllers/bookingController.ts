@@ -129,7 +129,7 @@ export const createBooking = async (req: Request, res: Response) => {
         passengerId,
         "booking_confirmed",
         "Бронь создана",
-        `Вы забронировали ${seats} место(а) в поездке ${trip.from.cityKey} → ${trip.to.cityKey}. Поездка подтверждена автоматически.`,
+        `Вы забронировали ${seats} место(а) в поездке ${trip.from.cityKey} → ${trip.to.cityKey}.`,
         booking.id
       );
     } else {
@@ -160,7 +160,7 @@ export const createBooking = async (req: Request, res: Response) => {
         "Автоматическое бронирование",
         `${req.user!.firstName} ${
           req.user!.lastName
-        } забронировал(а) ${seats} место(а) в вашей поездке через мгновенное бронирование.`,
+        } забронировал(а) ${seats} место(а) в вашей поездке.`,
         booking.id
       );
     }
