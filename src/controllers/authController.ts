@@ -284,7 +284,6 @@ export const getMe = async (req: Request, res: Response) => {
           role: user.role,
           firstName: user.firstName,
           lastName: user.lastName,
-          telegram: user.telegram,
           avatar: user.avatar,
           rating: user.rating,
           isVerified: user.isVerified,

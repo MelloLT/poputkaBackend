@@ -1,61 +1,62 @@
 import { cities } from "../data/cities";
 
-export const getAvailableCityKeys = (): string[] => {
-  return Object.keys(cities.en);
-};
-
-// Проверяем, что переданный ключ города существует
 export const isValidCityKey = (cityKey: string): boolean => {
-  if (!cityKey || typeof cityKey !== "string") return false;
+  // Приводим к нижнему регистру для поиска
+  const normalizedKey = cityKey.toLowerCase().trim();
 
-  const availableKeys = getAvailableCityKeys();
-  return availableKeys.includes(cityKey.trim());
+  // Проверяем все три языка
+  return (
+    cities.en.hasOwnProperty(normalizedKey) ||
+    cities.ru.hasOwnProperty(normalizedKey) ||
+    cities.uz.hasOwnProperty(normalizedKey)
+  );
 };
 
-// Получаем названия города по ключу на всех языках
-export const getCityNamesByKey = (
+export const getCityNames = (
   cityKey: string
-): {
-  key: string;
-  en: string;
-  ru: string;
-  uz: string;
-} | null => {
-  if (!isValidCityKey(cityKey)) return null;
+): { en: string; ru: string; uz: string } | null => {
+  const normalizedKey = cityKey.toLowerCase().trim();
 
-  const key = cityKey.trim();
+  if (!isValidCityKey(normalizedKey)) return null;
+
   return {
-    key,
-    en: cities.en[key as keyof typeof cities.en] || key,
-    ru: cities.ru[key as keyof typeof cities.ru] || key,
-    uz: cities.uz[key as keyof typeof cities.uz] || key,
+    en: cities.en[normalizedKey as keyof typeof cities.en] || cityKey,
+    ru: cities.ru[normalizedKey as keyof typeof cities.ru] || cityKey,
+    uz: cities.uz[normalizedKey as keyof typeof cities.uz] || cityKey,
   };
 };
 
-// Валидируем объект location (from/to)
-export const validateLocation = (location: {
-  cityKey: string;
-  address?: string;
-}) => {
-  if (!location || !location.cityKey) {
-    return { isValid: false, error: "cityKey обязателен" };
+// Функция для получения ключа по имени города (для обратного поиска)
+export const findCityKeyByName = (cityName: string): string | null => {
+  const normalizedName = cityName.toLowerCase().trim();
+
+  // Ищем в английских названиях
+  for (const [key, name] of Object.entries(cities.en)) {
+    if (name.toLowerCase() === normalizedName) return key;
   }
 
-  if (!isValidCityKey(location.cityKey)) {
-    return {
-      isValid: false,
-      error: `Неверный ключ города: "${location.cityKey}". Используйте допустимые ключи из /cities/keys`,
-    };
+  // Ищем в русских названиях
+  for (const [key, name] of Object.entries(cities.ru)) {
+    if (name.toLowerCase() === normalizedName) return key;
   }
 
-  return { isValid: true };
+  // Ищем в узбекских названиях
+  for (const [key, name] of Object.entries(cities.uz)) {
+    if (name.toLowerCase() === normalizedName) return key;
+  }
+
+  return null;
 };
 
-// Получаем список всех городов в удобном формате для фронтенда
-export const getAllCitiesFormatted = () => {
-  return getAvailableCityKeys().map((key) => ({
+export const getAllCityKeys = (): string[] => {
+  return Object.keys(cities.en);
+};
+
+// Функция для получения всех городов в удобном формате
+export const getAllCities = () => {
+  return Object.entries(cities.en).map(([key, enName]) => ({
     key,
-    en: cities.en[key as keyof typeof cities.en],
+    en: enName,
     ru: cities.ru[key as keyof typeof cities.ru],
     uz: cities.uz[key as keyof typeof cities.uz],
   }));

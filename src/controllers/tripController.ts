@@ -4,7 +4,7 @@ import Trip from "../models/Trip";
 import User from "../models/User";
 import Booking from "../models/Booking";
 import { getTripInfo } from "../services/mapService";
-import { isValidCityKey, validateLocation } from "../utils/cityValidator";
+import { isValidCityKey } from "../utils/cityValidator";
 
 export const getTrips = async (req: Request, res: Response) => {
   try {
@@ -220,19 +220,17 @@ export const createTrip = async (req: Request, res: Response) => {
       });
     }
 
-    const fromValidation = validateLocation(from);
-    if (!fromValidation.isValid) {
+    if (!isValidCityKey(from.cityKey)) {
       return res.status(400).json({
         success: false,
-        message: fromValidation.error,
+        message: `Неверный город отправления: ${from.cityKey}`,
       });
     }
 
-    const toValidation = validateLocation(to);
-    if (!toValidation.isValid) {
+    if (!isValidCityKey(to.cityKey)) {
       return res.status(400).json({
         success: false,
-        message: toValidation.error,
+        message: `Неверный город назначения: ${to.cityKey}`,
       });
     }
 
