@@ -2,6 +2,11 @@ import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 import { generateId } from "../utils/idGenerator";
 
+interface Location {
+  cityKey: string;
+  address: string;
+}
+
 interface UserAttributes {
   id: string;
   username: string;
@@ -53,6 +58,30 @@ interface UserAttributes {
     createdAt: Date;
     relatedBookingId?: string;
   }>;
+  tripHistory: Array<{
+    tripId: string;
+    role: "driver" | "passenger";
+    from: Location;
+    to: Location;
+    departureDate: string;
+    departureTime: string;
+    price: number;
+    status: "completed" | "cancelled";
+    completedAt: Date;
+    withUser?: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      avatar?: string;
+    };
+    passengers?: Array<{
+      id: string;
+      firstName: string;
+      lastName: string;
+      avatar?: string;
+      seats: number;
+    }>;
+  }>;
 }
 
 interface UserCreationAttributes
@@ -73,6 +102,7 @@ interface UserCreationAttributes
     | "emailVerified"
     | "phoneVerified"
     | "telegram"
+    | "tripHistory"
   > {}
 
 class User
@@ -128,6 +158,30 @@ class User
     isRead: boolean;
     createdAt: Date;
     relatedBookingId?: string;
+  }>;
+  public tripHistory!: Array<{
+    tripId: string;
+    role: "driver" | "passenger";
+    from: Location;
+    to: Location;
+    departureDate: string;
+    departureTime: string;
+    price: number;
+    status: "completed" | "cancelled";
+    completedAt: Date;
+    withUser?: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      avatar?: string;
+    };
+    passengers?: Array<{
+      id: string;
+      firstName: string;
+      lastName: string;
+      avatar?: string;
+      seats: number;
+    }>;
   }>;
 
   public readonly createdAt!: Date;
@@ -214,6 +268,10 @@ User.init(
     tripsCount: {
       type: DataTypes.INTEGER,
       defaultValue: 0,
+    },
+    tripHistory: {
+      type: DataTypes.JSONB,
+      defaultValue: [],
     },
     gender: {
       type: DataTypes.ENUM("male", "female"),

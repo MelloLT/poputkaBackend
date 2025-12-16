@@ -6,7 +6,6 @@ import {
   deleteTrip,
   getTripById,
   completeTrip,
-  getDriverTripHistory,
 } from "../controllers/tripController";
 import { authMiddleware, requireRole } from "../middleware/auth";
 
@@ -24,6 +23,5 @@ router.post("/", requireRole("driver"), createTrip);
 router.patch("/:id", requireRole("driver"), updateTrip);
 router.delete("/:id", requireRole("driver"), deleteTrip);
 router.patch("/:id/complete", requireRole("driver"), completeTrip);
-router.get("/driver/history", requireRole("driver"), getDriverTripHistory);
 
 export default router;

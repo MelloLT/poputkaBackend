@@ -77,7 +77,7 @@ const startServer = async () => {
     // НАСТРОЙКА АССОЦИАЦИЙ ПЕРЕД СИНХРОНИЗАЦИЕЙ
     setupAssociations();
 
-    await sequelize.sync({ force: false });
+    await sequelize.sync({ force: true });
     console.log("Database synchronized");
 
     app.listen(PORT, () => {

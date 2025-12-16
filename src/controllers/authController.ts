@@ -3,6 +3,8 @@ import { Op } from "sequelize";
 import User from "../models/User";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import Booking from "../models/Booking";
+import Trip from "../models/Trip";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
@@ -272,6 +274,70 @@ export const getMe = async (req: Request, res: Response) => {
   try {
     const user = req.user!;
 
+    let activeTrips = [];
+
+    if (user.role === "driver") {
+      // Активные поездки водителя
+      const driverTrips = await Trip.findAll({
+        where: {
+          driverId: user.id,
+          status: "active",
+        },
+        include: [
+          {
+            model: Booking,
+            as: "bookings",
+            include: [
+              {
+                model: User,
+                as: "passenger",
+                attributes: ["id", "firstName", "lastName", "avatar", "rating"],
+              },
+            ],
+          },
+        ],
+        order: [["departureDate", "ASC"]],
+      });
+      activeTrips = driverTrips;
+    } else {
+      // Активные бронирования пассажира
+      const passengerBookings = await Booking.findAll({
+        where: {
+          passengerId: user.id,
+          status: "confirmed",
+        },
+        include: [
+          {
+            model: Trip,
+            as: "trip",
+            where: { status: "active" },
+            include: [
+              {
+                model: User,
+                as: "driver",
+                attributes: [
+                  "id",
+                  "firstName",
+                  "lastName",
+                  "avatar",
+                  "rating",
+                  "car",
+                ],
+              },
+            ],
+          },
+        ],
+        order: [["createdAt", "DESC"]],
+      });
+      activeTrips = passengerBookings.map((booking) => ({
+        ...booking.trip?.toJSON(),
+        bookingInfo: {
+          id: booking.id,
+          seats: booking.seats,
+          bookedAt: booking.createdAt,
+        },
+      }));
+    }
     res.json({
       success: true,
       message: "Данные пользователя",
@@ -291,8 +357,12 @@ export const getMe = async (req: Request, res: Response) => {
           phoneVerified: user.phoneVerified,
           car: user.car,
           about: user.about,
+          telegram: user.telegram,
+          tripHistory: user.tripHistory || [],
+          tripsCount: user.tripsCount,
           notifications: user.notifications,
         },
+        activeTrips: activeTrips, // ← Добавляем активные поездки
       },
     });
   } catch (error: any) {

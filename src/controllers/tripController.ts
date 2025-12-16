@@ -6,6 +6,49 @@ import Booking from "../models/Booking";
 import { getTripInfo } from "../services/mapService";
 import { isValidCityKey } from "../utils/cityValidator";
 
+export const addNotification = async (
+  userId: string,
+  type:
+    | "booking_request"
+    | "booking_confirmed"
+    | "booking_rejected"
+    | "info"
+    | "success"
+    | "error",
+  title: string,
+  message: string,
+  relatedBookingId?: string
+) => {
+  try {
+    const user = await User.findByPk(userId);
+    if (!user) return;
+
+    const newNotification = {
+      id: `NT${Date.now()}${Math.random().toString(36).substr(2, 9)}`,
+      type,
+      title,
+      message,
+      isRead: false,
+      createdAt: new Date(),
+      relatedBookingId,
+    };
+
+    const updatedNotifications = [
+      newNotification,
+      ...(user.notifications || []),
+    ];
+
+    const limitedNotifications = updatedNotifications.slice(0, 100);
+    await user.update({ notifications: limitedNotifications });
+
+    console.log(`Уведомление добавлено пользователю ${userId}: ${title}`);
+    return newNotification;
+  } catch (error) {
+    console.error("Ошибка добавления уведомления:", error);
+    return null;
+  }
+};
+
 export const getTrips = async (req: Request, res: Response) => {
   try {
     const {
@@ -342,10 +385,24 @@ export const deleteTrip = async (req: Request, res: Response) => {
     const { id } = req.params;
     const driverId = req.user!.id;
 
-    console.log("Удаляем поездку ID:", id, "для водителя:", driverId);
+    console.log("Отменяем поездку ID:", id, "для водителя:", driverId);
 
     const trip = await Trip.findOne({
       where: { id, driverId },
+      include: [
+        {
+          model: Booking,
+          as: "bookings",
+          where: { status: "confirmed" },
+          include: [
+            {
+              model: User,
+              as: "passenger",
+              attributes: ["id", "firstName", "lastName", "avatar"],
+            },
+          ],
+        },
+      ],
     });
 
     if (!trip) {
@@ -355,84 +412,80 @@ export const deleteTrip = async (req: Request, res: Response) => {
       });
     }
 
+    // Обновляем статус поездки
     await trip.update({ status: "cancelled" });
+
+    // Добавляем в историю участников как отмененную поездку
+    const tripData = {
+      tripId: trip.id,
+      from: trip.from,
+      to: trip.to,
+      departureDate: trip.departureDate,
+      departureTime: trip.departureTime,
+      price: trip.price,
+      status: "cancelled" as const,
+      completedAt: new Date(),
+    };
+
+    // 1. Водителю
+    const driver = await User.findByPk(driverId);
+    if (driver) {
+      const driverHistoryEntry = {
+        ...tripData,
+        role: "driver" as const,
+        passengers: (trip.bookings || []).map((booking) => ({
+          id: booking.passenger?.id || booking.passengerId,
+          firstName: booking.passenger?.firstName || "Пассажир",
+          lastName: booking.passenger?.lastName || "",
+          avatar: booking.passenger?.avatar,
+          seats: booking.seats,
+        })),
+      };
+
+      const updatedDriverHistory = [
+        driverHistoryEntry,
+        ...(driver.tripHistory || []),
+      ];
+
+      await driver.update({ tripHistory: updatedDriverHistory });
+    }
+
+    // 2. Пассажирам
+    for (const booking of trip.bookings || []) {
+      const passenger = await User.findByPk(booking.passengerId);
+      if (passenger) {
+        const passengerHistoryEntry = {
+          ...tripData,
+          role: "passenger" as const,
+        };
+
+        const updatedPassengerHistory = [
+          passengerHistoryEntry,
+          ...(passenger.tripHistory || []),
+        ];
+
+        await passenger.update({ tripHistory: updatedPassengerHistory });
+
+        // Добавляем уведомление пассажиру
+        await addNotification(
+          booking.passengerId,
+          "error",
+          "Поездка отменена",
+          `Водитель отменил поездку ${trip.from.cityKey} → ${trip.to.cityKey}`,
+          booking.id
+        );
+      }
+    }
 
     res.json({
       success: true,
-      message: "Поездка отменена успешно",
+      message: "Поездка отменена",
     });
-  } catch (error) {
-    console.error("Ошибка при удалении поездки:", error);
+  } catch (error: any) {
+    console.error("Ошибка при удалении поездки:", error.message);
     res.status(500).json({
       success: false,
       message: "Ошибка сервера при удалении поездки",
-    });
-  }
-};
-
-// История поезок для водителей и пассажиров
-export const getDriverTripHistory = async (req: Request, res: Response) => {
-  try {
-    const driverId = req.user!.id;
-    const { status = "completed" } = req.query;
-
-    console.log(
-      "Получаем историю поездок для водителя:",
-      driverId,
-      "статус:",
-      status
-    );
-
-    const trips = await Trip.findAll({
-      where: {
-        driverId,
-        status: status.toString(),
-      },
-      include: [
-        {
-          model: User,
-          as: "driver",
-          attributes: [
-            "id",
-            "firstName",
-            "lastName",
-            "avatar",
-            "rating",
-            "tripsCount",
-            "car",
-          ],
-        },
-        {
-          model: Booking,
-          as: "bookings",
-          include: [
-            {
-              model: User,
-              as: "passenger",
-              attributes: ["id", "firstName", "lastName", "avatar", "rating"],
-            },
-          ],
-        },
-      ],
-      order: [["departureDate", "DESC"]],
-    });
-
-    console.log("Найдено поездок:", trips.length);
-
-    res.json({
-      success: true,
-      data: trips,
-      meta: {
-        total: trips.length,
-        role: "driver",
-        status: status,
-      },
-    });
-  } catch (error: any) {
-    console.error("Ошибка получения истории поездок водителя:", error.message);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при получении истории поездок",
     });
   }
 };
@@ -444,8 +497,28 @@ export const completeTrip = async (req: Request, res: Response) => {
 
     console.log("Завершаем поездку ID:", id, "для водителя:", driverId);
 
+    // Находим поездку с бронированиями и пассажирами
     const trip = await Trip.findOne({
       where: { id, driverId },
+      include: [
+        {
+          model: Booking,
+          as: "bookings",
+          where: { status: "confirmed" }, // Только подтвержденные брони
+          include: [
+            {
+              model: User,
+              as: "passenger",
+              attributes: ["id", "firstName", "lastName", "avatar"],
+            },
+          ],
+        },
+        {
+          model: User,
+          as: "driver",
+          attributes: ["id", "firstName", "lastName", "avatar"],
+        },
+      ],
     });
 
     if (!trip) {
@@ -472,52 +545,101 @@ export const completeTrip = async (req: Request, res: Response) => {
     // Обновляем статус поездки
     await trip.update({ status: "completed" });
 
-    // Увеличиваем счетчик поездок водителя
+    // Подготавливаем базовые данные поездки
+    const tripData = {
+      tripId: trip.id,
+      from: trip.from,
+      to: trip.to,
+      departureDate: trip.departureDate,
+      departureTime: trip.departureTime,
+      price: trip.price,
+      status: "completed" as const,
+      completedAt: new Date(),
+    };
+
+    // 1. Обновляем историю ВОДИТЕЛЯ
     const driver = await User.findByPk(driverId);
-    if (driver) {
+    if (driver && trip.driver) {
+      // Подготавливаем информацию о пассажирах
+      const passengers = (trip.bookings || []).map((booking) => ({
+        id: booking.passenger?.id || booking.passengerId,
+        firstName: booking.passenger?.firstName || "Пассажир",
+        lastName: booking.passenger?.lastName || "",
+        avatar: booking.passenger?.avatar,
+        seats: booking.seats,
+      }));
+
+      const driverHistoryEntry = {
+        ...tripData,
+        role: "driver" as const,
+        passengers: passengers,
+      };
+
+      const updatedDriverHistory = [
+        driverHistoryEntry,
+        ...(driver.tripHistory || []),
+      ];
+
       await driver.update({
+        tripHistory: updatedDriverHistory,
         tripsCount: (driver.tripsCount || 0) + 1,
       });
-      console.log("Счетчик поездок водителя увеличен:", driver.tripsCount);
+
+      console.log(
+        `История водителя ${driver.id} обновлена, добавлена поездка ${trip.id}`
+      );
     }
 
-    // Увеличиваем счетчик поездок всех пассажиров этой поездки
-    const bookings = await Booking.findAll({
-      where: {
-        tripId: id,
-        status: "confirmed",
-      },
-    });
+    // 2. Обновляем историю каждого ПАССАЖИРА
+    for (const booking of trip.bookings || []) {
+      if (!booking.passenger) continue;
 
-    console.log("Найдено подтвержденных броней:", bookings.length);
-
-    for (const booking of bookings) {
       const passenger = await User.findByPk(booking.passengerId);
-      if (passenger) {
+      if (passenger && trip.driver) {
+        const passengerHistoryEntry = {
+          ...tripData,
+          role: "passenger" as const,
+          withUser: {
+            id: trip.driver.id,
+            firstName: trip.driver.firstName,
+            lastName: trip.driver.lastName,
+            avatar: trip.driver.avatar,
+          },
+        };
+
+        const updatedPassengerHistory = [
+          passengerHistoryEntry,
+          ...(passenger.tripHistory || []),
+        ];
+
         await passenger.update({
+          tripHistory: updatedPassengerHistory,
           tripsCount: (passenger.tripsCount || 0) + 1,
         });
+
         console.log(
-          "Счетчик поездок пассажира увеличен:",
-          passenger.id,
-          passenger.tripsCount
+          `История пассажира ${passenger.id} обновлена, добавлена поездка ${trip.id}`
         );
       }
     }
 
-    // Получаем обновленную поездку с данными водителя
+    // Получаем обновленную поездку для ответа
     const updatedTrip = await Trip.findByPk(id, {
       include: [
         {
           model: User,
           as: "driver",
-          attributes: [
-            "id",
-            "firstName",
-            "lastName",
-            "avatar",
-            "rating",
-            "tripsCount",
+          attributes: ["id", "firstName", "lastName", "avatar", "rating"],
+        },
+        {
+          model: Booking,
+          as: "bookings",
+          include: [
+            {
+              model: User,
+              as: "passenger",
+              attributes: ["id", "firstName", "lastName", "avatar", "rating"],
+            },
           ],
         },
       ],
@@ -525,11 +647,12 @@ export const completeTrip = async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      message: "Поездка успешно завершена",
+      message: "Поездка успешно завершена и добавлена в историю участников",
       data: updatedTrip,
     });
   } catch (error: any) {
     console.error("Ошибка при завершении поездки:", error.message);
+    console.error(error.stack);
     res.status(500).json({
       success: false,
       message: "Ошибка сервера при завершении поездки",
