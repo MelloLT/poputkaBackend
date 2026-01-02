@@ -62,7 +62,6 @@ interface UserAttributes {
     relatedBookingId?: string;
   }>;
   reports: Array<{
-    // Добавили
     id: string;
     reporterId: string;
     reason: string;

@@ -1,4 +1,3 @@
-// Локальные координаты городов Узбекистана
 export const cityCoordinates: Record<string, [number, number]> = {
   akkurgan: [40.87933, 69.04873],
   aktash: [39.92919, 65.93083],
@@ -182,5 +181,3 @@ export const getTripInfo = (fromCity: string, toCity: string) => {
     return null;
   }
 };
-
-// Обновить mapService.ts чтобы использовать локальный сервис

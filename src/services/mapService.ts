@@ -38,7 +38,6 @@ export const getTripInfo = (fromCity: string, toCity: string) => {
   }
 };
 
-// Экспортируем вспомогательные функции если нужно
 export {
   cityCoordinates,
   calculateDistance,
