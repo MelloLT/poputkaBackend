@@ -3,17 +3,30 @@ import {
   createBooking,
   getMyBookings,
   cancelBooking,
-  getBookingById, // Добавляем импорт
+  getBookingById,
 } from "../controllers/bookingController";
 import { authMiddleware } from "../middleware/auth";
+import {
+  checkSelfBooking,
+  checkTripActive,
+  checkMaxBookings,
+  checkFutureTrip,
+} from "../middleware/validation";
 
 const router = express.Router();
 
-router.use(authMiddleware);
+// Применяем middleware в правильном порядке
+router.post(
+  "/",
+  authMiddleware,
+  checkSelfBooking,
+  checkTripActive,
+  checkMaxBookings,
+  createBooking
+);
 
-router.post("/", createBooking);
-router.get("/me", getMyBookings);
-router.get("/:id", getBookingById); // Новый роут
-router.delete("/:id", cancelBooking);
+router.get("/me", authMiddleware, getMyBookings);
+router.get("/:id", authMiddleware, getBookingById);
+router.delete("/:id", authMiddleware, cancelBooking);
 
 export default router;
