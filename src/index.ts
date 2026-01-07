@@ -21,6 +21,8 @@ import notificationRoutes from "./routes/notifications";
 import { socketAuthMiddleware } from "./middleware/socketAuth";
 
 import { createServer } from "http";
+import adminRoutes from "./routes/admin";
+import citiesRoutes from "./routes/cities";
 config();
 
 dotenv.config();
@@ -92,6 +94,8 @@ app.use("/map", mapRoutes);
 app.use("/reviews", reviewRoutes);
 app.use("/notifications", notificationRoutes);
 app.use("/chats", chatRoutes);
+app.use("/admin", adminRoutes);
+app.use("/cities", citiesRoutes);
 
 // Базовые эндпоинты
 app.get("/", (req, res) => {
@@ -119,10 +123,9 @@ const startServer = async () => {
     await sequelize.authenticate();
     console.log("Connected to PostgreSQL successfully");
 
-    // НАСТРОЙКА АССОЦИАЦИЙ ПЕРЕД СИНХРОНИЗАЦИЕЙ
     setupAssociations();
 
-    await sequelize.sync();
+    await sequelize.sync({ force: false });
     console.log("Database synchronized");
 
     server.listen(PORT, () => {

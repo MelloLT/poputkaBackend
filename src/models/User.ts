@@ -13,7 +13,7 @@ interface UserAttributes {
   email: string;
   phone: string;
   password: string;
-  role: "driver" | "passenger";
+  role: "driver" | "passenger" | "admin";
   firstName: string;
   lastName: string;
   birthDate: string;
@@ -28,6 +28,9 @@ interface UserAttributes {
   phoneVerified: boolean;
   verificationCode?: string;
   verificationCodeExpires?: Date;
+  isBanned: boolean;
+  banReason?: string;
+  bannedUntil?: Date;
   reviews: Array<{
     author: string;
     authorId: string;
@@ -57,6 +60,16 @@ interface UserAttributes {
     isRead: boolean;
     createdAt: Date;
     relatedBookingId?: string;
+  }>;
+  reports: Array<{
+    id: string;
+    reporterId: string;
+    reason: string;
+    details: string;
+    createdAt: Date;
+    status: "pending" | "reviewed" | "resolved";
+    adminNote?: string;
+    resolvedAt?: Date;
   }>;
   tripHistory: Array<{
     tripId: string;
@@ -103,6 +116,8 @@ interface UserCreationAttributes
     | "phoneVerified"
     | "telegram"
     | "tripHistory"
+    | "isBanned"
+    | "reports"
   > {}
 
 class User
@@ -114,7 +129,7 @@ class User
   public email!: string;
   public phone!: string;
   public password!: string;
-  public role!: "driver" | "passenger";
+  public role!: "driver" | "passenger" | "admin";
   public firstName!: string;
   public lastName!: string;
   public birthDate!: string;
@@ -129,6 +144,10 @@ class User
   public phoneVerified!: boolean;
   public verificationCode?: string;
   public verificationCodeExpires?: Date;
+  public isBanned!: boolean;
+  public banReason?: string;
+  public bannedUntil?: Date;
+
   public reviews!: Array<{
     author: string;
     authorId: string;
@@ -158,6 +177,16 @@ class User
     isRead: boolean;
     createdAt: Date;
     relatedBookingId?: string;
+  }>;
+  public reports!: Array<{
+    id: string;
+    reporterId: string;
+    reason: string;
+    details: string;
+    createdAt: Date;
+    status: "pending" | "reviewed" | "resolved";
+    adminNote?: string;
+    resolvedAt?: Date;
   }>;
   public tripHistory!: Array<{
     tripId: string;
@@ -230,7 +259,7 @@ User.init(
       allowNull: false,
     },
     role: {
-      type: DataTypes.ENUM("driver", "passenger"),
+      type: DataTypes.ENUM("driver", "passenger", "admin"),
       allowNull: false,
     },
     firstName: {
@@ -257,6 +286,22 @@ User.init(
       validate: {
         is: /^@?[a-zA-Z0-9_]{5,32}$/,
       },
+    },
+    isBanned: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    banReason: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    bannedUntil: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    reports: {
+      type: DataTypes.JSONB,
+      defaultValue: [],
     },
     about: {
       type: DataTypes.TEXT,
