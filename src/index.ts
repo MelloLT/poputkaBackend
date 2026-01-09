@@ -95,7 +95,7 @@ app.use("/reviews", reviewRoutes);
 app.use("/notifications", notificationRoutes);
 app.use("/chats", chatRoutes);
 app.use("/admin", adminRoutes);
-app.use("/cities", citiesRoutes);
+
 
 // Базовые эндпоинты
 app.get("/", (req, res) => {

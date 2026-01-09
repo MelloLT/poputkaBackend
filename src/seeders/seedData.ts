@@ -351,13 +351,13 @@ export const seedData = async () => {
       ],
     });
 
-    console.log("\n✅ SEED УСПЕШНО ЗАВЕРШЕН");
+    console.log("\nSEED УСПЕШНО ЗАВЕРШЕН");
     console.log("=========================");
     console.log("Пользователей: 4 (2 водителя, 1 пассажир, 1 админ)");
     console.log("Поездок: 3 (2 завершенные, 1 активная)");
     console.log("Броней: 2 завершенные");
     console.log("Отзывов: 2");
-    console.log("\n📋 Тестовые данные для входа:");
+    console.log("\nТестовые данные для входа:");
     console.log("----------------------------");
     console.log("Администратор:");
     console.log("- Email: admin@poputka.uz");
@@ -378,7 +378,7 @@ export const seedData = async () => {
     console.log("- Цена: 180,000 UZS");
     console.log("- Свободных мест: 4");
   } catch (error: any) {
-    console.log("\n❌ ОШИБКА В SEED");
+    console.log("\nОШИБКА В SEED");
     console.error("Сообщение:", error.message);
     console.error("Stack:", error.stack);
     console.error("Full error:", error);
