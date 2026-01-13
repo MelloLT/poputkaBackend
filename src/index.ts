@@ -96,7 +96,6 @@ app.use("/notifications", notificationRoutes);
 app.use("/chats", chatRoutes);
 app.use("/admin", adminRoutes);
 
-
 // Базовые эндпоинты
 app.get("/", (req, res) => {
   res.json({

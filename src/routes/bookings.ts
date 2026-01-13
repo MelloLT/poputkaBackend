@@ -1,7 +1,6 @@
 import express from "express";
 import {
   createBooking,
-  getMyBookings,
   cancelBooking,
   getBookingById,
 } from "../controllers/bookingController";
@@ -25,7 +24,6 @@ router.post(
   createBooking
 );
 
-router.get("/me", authMiddleware, getMyBookings);
 router.get("/:id", authMiddleware, getBookingById);
 router.delete("/:id", authMiddleware, cancelBooking);
 
