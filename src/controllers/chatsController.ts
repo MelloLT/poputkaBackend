@@ -45,8 +45,57 @@ export const getChats = async (req: any, res: any) => {
     return res.status(500).json({ success: false, message: err.message });
   }
 };
-export const getChatByID = async (req: Request, res: Response) => {};
+export const getChatByID = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
 
+    const chat = await Chat.findByPk(id, {
+      include: [
+        {
+          model: User,
+          as: "user1",
+          attributes: ["id", "username", "firstName", "lastName", "avatar"],
+        },
+        {
+          model: User,
+          as: "user2",
+          attributes: ["id", "username", "firstName", "lastName", "avatar"],
+        },
+        {
+          model: Message,
+          as: "messages",
+          include: [
+            {
+              model: User,
+              as: "sender",
+              attributes: ["id", "username", "firstName", "lastName", "avatar"],
+            },
+          ],
+          separate: true,
+          order: [["createdAt", "ASC"]],
+        },
+      ],
+    });
+
+    if (!chat) {
+      return res.status(404).json({
+        success: false,
+        message: "Чат не найден",
+      });
+    }
+
+    res.json({
+      success: true,
+      data: chat,
+    });
+  } catch (error) {
+    console.error("Ошибка при получении поездки:", error);
+    res.status(500).json({
+      success: false,
+      message: "Ошибка сервера",
+    });
+  }
+};
 export const sendMessage = async (req: Request, res: Response) => {
   try {
     const { chatId, text } = req.body;
