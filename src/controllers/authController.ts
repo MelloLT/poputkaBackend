@@ -70,7 +70,7 @@ export const register = async (req: Request, res: Response) => {
       !allowedDomains.includes(emailDomain?.toLowerCase())
     ) {
       validationErrors.push(
-        "Адрес электронной почты недействительный. Попробуйте следующий формат: email@example.com."
+        "Адрес электронной почты недействительный. Попробуйте следующий формат: email@example.com.",
       );
     }
 
@@ -84,7 +84,7 @@ export const register = async (req: Request, res: Response) => {
     const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d._-]{10,18}$/;
     if (!passwordRegex.test(password)) {
       validationErrors.push(
-        "Неверный формат пароля. Пароль должен содержать латинские буквы и цифры, точки и тире"
+        "Неверный формат пароля. Пароль должен содержать латинские буквы и цифры, точки и тире",
       );
     }
     // Валидация возраста
@@ -93,7 +93,7 @@ export const register = async (req: Request, res: Response) => {
     const minAgeDate = new Date(
       today.getFullYear() - 18,
       today.getMonth(),
-      today.getDate()
+      today.getDate(),
     );
 
     if (birthDateObj > minAgeDate) {
@@ -108,12 +108,12 @@ export const register = async (req: Request, res: Response) => {
     const nameRegex = /^[A-Za-zА-Яа-яЁё\s]{1,20}$/;
     if (!nameRegex.test(firstName)) {
       validationErrors.push(
-        "firstName должен состоять из букв и быть не длиннее 20 символов"
+        "firstName должен состоять из букв и быть не длиннее 20 символов",
       );
     }
     if (!nameRegex.test(lastName)) {
       validationErrors.push(
-        "lastName должен состоять из букв и быть не длиннее 20 символов"
+        "lastName должен состоять из букв и быть не длиннее 20 символов",
       );
     }
 
@@ -274,217 +274,13 @@ export const getMe = async (req: Request, res: Response) => {
   try {
     const user = req.user!;
 
-    // Получаем активные поездки и бронирования в ЕДИНОМ формате
-    let activeTrips = [];
-
-    if (user.role === "driver") {
-      // Активные поездки водителя с бронированиями
-      const driverTrips = await Trip.findAll({
-        where: {
-          driverId: user.id,
-          status: "active",
-        },
-        include: [
-          {
-            model: Booking,
-            as: "bookings",
-            where: { status: ["confirmed", "pending"] }, // И подтвержденные, и ожидающие
-            required: false, // Чтобы показывать поездки даже без бронирований
-            include: [
-              {
-                model: User,
-                as: "passenger",
-                attributes: [
-                  "id",
-                  "firstName",
-                  "lastName",
-                  "avatar",
-                  "rating",
-                  "telegram",
-                  "phone",
-                ],
-              },
-            ],
-          },
-        ],
-        order: [
-          ["departureDate", "ASC"],
-          ["departureTime", "ASC"],
-        ],
-      });
-
-      // Форматируем в единый формат
-      activeTrips = driverTrips.map((trip) => ({
-        trip: {
-          id: trip.id,
-          driverId: trip.driverId,
-          from: trip.from,
-          to: trip.to,
-          departureDate: trip.departureDate,
-          departureTime: trip.departureTime,
-          price: trip.price,
-          availableSeats: trip.availableSeats,
-          description: trip.description,
-          instantBooking: trip.instantBooking,
-          maxTwoBackSeats: trip.maxTwoBackSeats,
-          status: trip.status,
-          tripInfo: trip.tripInfo,
-          createdAt: trip.createdAt,
-          updatedAt: trip.updatedAt,
-        },
-        // Информация о водителе (сам пользователь)
-        driver: {
-          id: user.id,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          avatar: user.avatar,
-          rating: user.rating,
-          car: user.car,
-          telegram: user.telegram,
-          phone: user.phone,
-        },
-        // Бронирования в стандартном формате
-        bookings: (trip.bookings || []).map((booking) => ({
-          id: booking.id,
-          passengerId: booking.passengerId,
-          tripId: booking.tripId,
-          seats: booking.seats,
-          status: booking.status,
-          createdAt: booking.createdAt,
-          updatedAt: booking.updatedAt,
-          passenger: booking.passenger
-            ? {
-                id: booking.passenger.id,
-                firstName: booking.passenger.firstName,
-                lastName: booking.passenger.lastName,
-                avatar: booking.passenger.avatar,
-                rating: booking.passenger.rating,
-                telegram: booking.passenger.telegram,
-                phone: booking.passenger.phone,
-              }
-            : null,
-        })),
-        // Для водителя также возвращаем информацию о его роли
-        userRole: "driver",
-        // Полезные метаданные
-        meta: {
-          totalBookings: trip.bookings?.length || 0,
-          confirmedBookings:
-            trip.bookings?.filter((b) => b.status === "confirmed").length || 0,
-          pendingBookings:
-            trip.bookings?.filter((b) => b.status === "pending").length || 0,
-        },
-      }));
-    } else {
-      // Пассажир - его активные бронирования
-      const passengerBookings = await Booking.findAll({
-        where: {
-          passengerId: user.id,
-          status: ["confirmed", "pending"], // И подтвержденные, и ожидающие
-        },
-        include: [
-          {
-            model: Trip,
-            as: "trip",
-            where: { status: "active" },
-            include: [
-              {
-                model: User,
-                as: "driver",
-                attributes: [
-                  "id",
-                  "firstName",
-                  "lastName",
-                  "avatar",
-                  "rating",
-                  "car",
-                  "telegram",
-                  "phone",
-                ],
-              },
-            ],
-          },
-        ],
-        order: [["createdAt", "DESC"]],
-      });
-
-      // Форматируем в единый формат
-      activeTrips = passengerBookings
-        .map((booking) => {
-          if (!booking.trip) return null;
-
-          return {
-            trip: {
-              id: booking.trip.id,
-              driverId: booking.trip.driverId,
-              from: booking.trip.from,
-              to: booking.trip.to,
-              departureDate: booking.trip.departureDate,
-              departureTime: booking.trip.departureTime,
-              price: booking.trip.price,
-              availableSeats: booking.trip.availableSeats,
-              description: booking.trip.description,
-              instantBooking: booking.trip.instantBooking,
-              maxTwoBackSeats: booking.trip.maxTwoBackSeats,
-              status: booking.trip.status,
-              tripInfo: booking.trip.tripInfo,
-              createdAt: booking.trip.createdAt,
-              updatedAt: booking.trip.updatedAt,
-            },
-            // Информация о водителе
-            driver: booking.trip.driver
-              ? {
-                  id: booking.trip.driver.id,
-                  firstName: booking.trip.driver.firstName,
-                  lastName: booking.trip.driver.lastName,
-                  avatar: booking.trip.driver.avatar,
-                  rating: booking.trip.driver.rating,
-                  car: booking.trip.driver.car,
-                  telegram: booking.trip.driver.telegram,
-                  phone: booking.trip.driver.phone,
-                }
-              : null,
-            // Бронирования (в случае пассажира - его собственное бронирование)
-            bookings: [
-              {
-                id: booking.id,
-                passengerId: booking.passengerId,
-                tripId: booking.tripId,
-                seats: booking.seats,
-                status: booking.status,
-                createdAt: booking.createdAt,
-                updatedAt: booking.updatedAt,
-                // Пассажир (сам пользователь)
-                passenger: {
-                  id: user.id,
-                  firstName: user.firstName,
-                  lastName: user.lastName,
-                  avatar: user.avatar,
-                  rating: user.rating,
-                  telegram: user.telegram,
-                  phone: user.phone,
-                },
-              },
-            ],
-            // Для пассажира также возвращаем информацию о его роли
-            userRole: "passenger",
-            // Полезные метаданные
-            meta: {
-              isMyBooking: true,
-              bookingId: booking.id,
-            },
-          };
-        })
-        .filter((trip) => trip !== null);
-    }
-
     // Получаем уведомления (автоматически удаляем старые)
     const notifications = user.notifications || [];
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     const freshNotifications = notifications.filter(
-      (notification) => new Date(notification.createdAt) > thirtyDaysAgo
+      (notification) => new Date(notification.createdAt) > thirtyDaysAgo,
     );
 
     // Обновляем уведомления если есть что удалить
@@ -517,8 +313,8 @@ export const getMe = async (req: Request, res: Response) => {
           isBanned: user.isBanned,
           reports: user.reports || [],
         },
-        activeTrips: activeTrips, // Единый формат для всех!
         notifications: freshNotifications,
+        // УБРАЛИ: activeTrips - теперь это в профиле пользователя
       },
     });
   } catch (error: any) {
