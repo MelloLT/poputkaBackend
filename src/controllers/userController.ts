@@ -140,11 +140,9 @@ export const getUserById = async (req: Request, res: Response) => {
       });
     }
 
-    // Получаем активные поездки пользователя
     let activeTrips = [];
 
     if (user.role === "driver") {
-      // Для ВОДИТЕЛЯ: все его активные поездки со ВСЕМИ бронированиями
       const driverTrips = await Trip.findAll({
         where: {
           driverId: user.id,
@@ -179,7 +177,6 @@ export const getUserById = async (req: Request, res: Response) => {
         ],
       });
 
-      // Форматируем бронирования: ВОДИТЕЛЬ видит ВСЕХ пассажиров
       activeTrips = driverTrips.map((trip) => ({
         id: trip.id,
         from: trip.from,
@@ -195,7 +192,6 @@ export const getUserById = async (req: Request, res: Response) => {
         tripInfo: trip.tripInfo,
         createdAt: trip.createdAt,
         updatedAt: trip.updatedAt,
-        // Водитель видит ВСЕ бронирования своих поездок
         bookings: (trip.bookings || []).map((booking) => ({
           id: booking.id,
           seats: booking.seats,
@@ -223,7 +219,6 @@ export const getUserById = async (req: Request, res: Response) => {
         },
       }));
     } else {
-      // Для ПАССАЖИРА: только ЕГО активные бронирования
       const passengerBookings = await Booking.findAll({
         where: {
           passengerId: user.id,
@@ -255,7 +250,6 @@ export const getUserById = async (req: Request, res: Response) => {
         order: [["createdAt", "DESC"]],
       });
 
-      // Форматируем: ПАССАЖИР видит только СВОИ бронирования
       activeTrips = passengerBookings
         .map((booking) => {
           if (!booking.trip) return null;
@@ -309,10 +303,9 @@ export const getUserById = async (req: Request, res: Response) => {
         .filter((trip) => trip !== null);
     }
 
-    // Форматируем историю поездок для ответа
     const formattedTripHistory = (user.tripHistory || []).map((history) => ({
       ...history,
-      // Маскируем чувствительную информацию в зависимости от того, кто запрашивает
+
       ...(user.role === "passenger" && history.role === "passenger"
         ? { passengers: undefined } // Пассажир не видит других пассажиров
         : {}),
@@ -339,7 +332,7 @@ export const getUserById = async (req: Request, res: Response) => {
           telegram: user.telegram,
           tripsCount: user.tripsCount,
           isBanned: user.isBanned,
-          // Отдаем только базовую информацию о репортах
+
           reportsCount: user.reports?.length || 0,
         },
         // Активные поездки с бронированиями
@@ -454,7 +447,7 @@ export const updateProfile = async (req: Request, res: Response) => {
     if (firstName !== undefined) updateData.firstName = firstName;
     if (lastName !== undefined) updateData.lastName = lastName;
     if (gender !== undefined) updateData.gender = gender;
-    if (telegram !== undefined) updateData.telegram = telegram; // Добавляем telegram
+    if (telegram !== undefined) updateData.telegram = telegram;
 
     await user.update(updateData);
 
@@ -468,7 +461,7 @@ export const updateProfile = async (req: Request, res: Response) => {
           lastName: user.lastName,
           about: user.about,
           gender: user.gender,
-          telegram: user.telegram, // Возвращаем telegram
+          telegram: user.telegram,
         },
       },
     });

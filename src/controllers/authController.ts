@@ -274,7 +274,6 @@ export const getMe = async (req: Request, res: Response) => {
   try {
     const user = req.user!;
 
-    // Получаем уведомления (автоматически удаляем старые)
     const notifications = user.notifications || [];
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -283,7 +282,6 @@ export const getMe = async (req: Request, res: Response) => {
       (notification) => new Date(notification.createdAt) > thirtyDaysAgo,
     );
 
-    // Обновляем уведомления если есть что удалить
     if (freshNotifications.length !== notifications.length) {
       await user.update({ notifications: freshNotifications });
     }
@@ -314,7 +312,6 @@ export const getMe = async (req: Request, res: Response) => {
           reports: user.reports || [],
         },
         notifications: freshNotifications,
-        // УБРАЛИ: activeTrips - теперь это в профиле пользователя
       },
     });
   } catch (error: any) {
