@@ -275,8 +275,6 @@ export const getMe = async (req: Request, res: Response) => {
   try {
     const user = req.user!;
 
-<<<<<<< HEAD
-=======
     // Получаем активные поездки пользователя
     let activeTrips = [];
 
@@ -444,7 +442,6 @@ export const getMe = async (req: Request, res: Response) => {
     }
 
     // Получаем уведомления (автоматически удаляем старые)
->>>>>>> ff4d327 (active trips in user's model)
     const notifications = user.notifications || [];
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -453,6 +450,7 @@ export const getMe = async (req: Request, res: Response) => {
       (notification) => new Date(notification.createdAt) > thirtyDaysAgo,
     );
 
+    // Обновляем уведомления если есть что удалить
     if (freshNotifications.length !== notifications.length) {
       await user.update({ notifications: freshNotifications });
     }
