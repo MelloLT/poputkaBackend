@@ -46,6 +46,52 @@ interface UserAttributes {
     licensePlate: string;
     photos?: string[];
   };
+  activeTrips: Array<{
+    tripId: string;
+    role: "driver" | "passenger";
+    from: Location;
+    to: Location;
+    departureDate: string;
+    departureTime: string;
+    price: number;
+    availableSeats: number;
+    status: "active";
+    // Только для водителя - все бронирования пассажиров
+    bookings?: Array<{
+      id: string;
+      passengerId: string;
+      passenger: {
+        id: string;
+        firstName: string;
+        lastName: string;
+        avatar?: string;
+        rating: number;
+        telegram?: string;
+        phone?: string;
+      };
+      seats: number;
+      status: "confirmed" | "pending";
+      createdAt: Date;
+    }>;
+    // Только для пассажира - его собственное бронирование
+    myBooking?: {
+      id: string;
+      seats: number;
+      status: "confirmed" | "pending";
+      createdAt: Date;
+    };
+    // Общая информация о второй стороне
+    counterpart?: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      avatar?: string;
+      rating: number;
+      car?: any;
+      telegram?: string;
+      phone?: string;
+    };
+  }>;
   notifications: Array<{
     id: string;
     type:
@@ -97,28 +143,28 @@ interface UserAttributes {
   }>;
 }
 
-interface UserCreationAttributes
-  extends Optional<
-    UserAttributes,
-    | "id"
-    | "rating"
-    | "isVerified"
-    | "reviews"
-    | "avatar"
-    | "gender"
-    | "car"
-    | "verificationCode"
-    | "verificationCodeExpires"
-    | "notifications"
-    | "about"
-    | "tripsCount"
-    | "emailVerified"
-    | "phoneVerified"
-    | "telegram"
-    | "tripHistory"
-    | "isBanned"
-    | "reports"
-  > {}
+interface UserCreationAttributes extends Optional<
+  UserAttributes,
+  | "id"
+  | "rating"
+  | "isVerified"
+  | "reviews"
+  | "avatar"
+  | "gender"
+  | "car"
+  | "verificationCode"
+  | "verificationCodeExpires"
+  | "activeTrips"
+  | "notifications"
+  | "about"
+  | "tripsCount"
+  | "emailVerified"
+  | "phoneVerified"
+  | "telegram"
+  | "tripHistory"
+  | "isBanned"
+  | "reports"
+> {}
 
 class User
   extends Model<UserAttributes, UserCreationAttributes>
@@ -163,6 +209,49 @@ class User
     licensePlate: string;
     photos?: string[];
   };
+  public activeTrips!: Array<{
+    tripId: string;
+    role: "driver" | "passenger";
+    from: Location;
+    to: Location;
+    departureDate: string;
+    departureTime: string;
+    price: number;
+    availableSeats: number;
+    status: "active";
+    bookings?: Array<{
+      id: string;
+      passengerId: string;
+      passenger: {
+        id: string;
+        firstName: string;
+        lastName: string;
+        avatar?: string;
+        rating: number;
+        telegram?: string;
+        phone?: string;
+      };
+      seats: number;
+      status: "confirmed" | "pending";
+      createdAt: Date;
+    }>;
+    myBooking?: {
+      id: string;
+      seats: number;
+      status: "confirmed" | "pending";
+      createdAt: Date;
+    };
+    counterpart?: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      avatar?: string;
+      rating: number;
+      car?: any;
+      telegram?: string;
+      phone?: string;
+    };
+  }>;
   public notifications!: Array<{
     id: string;
     type:
@@ -358,6 +447,10 @@ User.init(
       type: DataTypes.JSONB,
       allowNull: true,
     },
+    activeTrips: {
+      type: DataTypes.JSONB,
+      defaultValue: [],
+    },
     notifications: {
       type: DataTypes.JSONB,
       defaultValue: [],
@@ -367,7 +460,7 @@ User.init(
     tableName: "users",
     sequelize,
     timestamps: true,
-  }
+  },
 );
 
 export default User;

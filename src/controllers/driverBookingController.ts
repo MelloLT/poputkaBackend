@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import Booking from "../models/Booking";
 import Trip from "../models/Trip";
 import User from "../models/User";
+import { updateTripParticipantsActiveTrips } from "../services/userTripsService";
 
 // Получить все бронирования для поездок водителя
 export const getDriverBookings = async (req: Request, res: Response) => {
@@ -114,6 +115,8 @@ export const confirmBooking = async (req: Request, res: Response) => {
       availableSeats: trip.availableSeats - booking.seats,
     });
 
+    await updateTripParticipantsActiveTrips(trip.id);
+
     // Добавить уведомление пассажиру
     const passenger = await User.findByPk(booking.passengerId);
     if (passenger) {
@@ -183,6 +186,7 @@ export const rejectBooking = async (req: Request, res: Response) => {
 
     // Обновить бронирование
     await booking.update({ status: "rejected" });
+    await updateTripParticipantsActiveTrips(booking.tripId);
 
     // Добавление уведомление пассажиру
     const passenger = await User.findByPk(booking.passengerId);
@@ -231,7 +235,7 @@ export const getDriverTripHistory = async (req: Request, res: Response) => {
       "Получаем историю поездок для водителя:",
       driverId,
       "статус:",
-      status
+      status,
     );
 
     const trips = await Trip.findAll({

@@ -5,6 +5,10 @@ import User from "../models/User";
 import Booking from "../models/Booking";
 import { getTripInfo } from "../services/mapService";
 import { isValidCityKey } from "../utils/cityValidator";
+import {
+  updateTripParticipantsActiveTrips,
+  updateUserActiveTrips,
+} from "../services/userTripsService";
 
 export const addNotification = async (
   userId: string,
@@ -17,7 +21,7 @@ export const addNotification = async (
     | "error",
   title: string,
   message: string,
-  relatedBookingId?: string
+  relatedBookingId?: string,
 ) => {
   try {
     const user = await User.findByPk(userId);
@@ -331,6 +335,7 @@ export const createTrip = async (req: Request, res: Response) => {
 
     console.log("Поездка создана, ID:", newTrip.id);
 
+    await updateUserActiveTrips(driverId);
     res.status(201).json({
       success: true,
       message: "Поездка создана успешно",
@@ -365,6 +370,7 @@ export const updateTrip = async (req: Request, res: Response) => {
     }
 
     await trip.update(updateData);
+    await updateTripParticipantsActiveTrips(id);
 
     res.json({
       success: true,
@@ -414,6 +420,7 @@ export const deleteTrip = async (req: Request, res: Response) => {
 
     // Обновляем статус поездки
     await trip.update({ status: "cancelled" });
+    await updateTripParticipantsActiveTrips(id);
 
     // Добавляем в историю участников как отмененную поездку
     const tripData = {
@@ -472,7 +479,7 @@ export const deleteTrip = async (req: Request, res: Response) => {
           "error",
           "Поездка отменена",
           `Водитель отменил поездку ${trip.from.cityKey} → ${trip.to.cityKey}`,
-          booking.id
+          booking.id,
         );
       }
     }
@@ -544,6 +551,7 @@ export const completeTrip = async (req: Request, res: Response) => {
 
     // Обновляем статус поездки
     await trip.update({ status: "completed" });
+    await updateTripParticipantsActiveTrips(id);
 
     // Подготавливаем базовые данные поездки
     const tripData = {
@@ -586,7 +594,7 @@ export const completeTrip = async (req: Request, res: Response) => {
       });
 
       console.log(
-        `История водителя ${driver.id} обновлена, добавлена поездка ${trip.id}`
+        `История водителя ${driver.id} обновлена, добавлена поездка ${trip.id}`,
       );
     }
 
@@ -618,7 +626,7 @@ export const completeTrip = async (req: Request, res: Response) => {
         });
 
         console.log(
-          `История пассажира ${passenger.id} обновлена, добавлена поездка ${trip.id}`
+          `История пассажира ${passenger.id} обновлена, добавлена поездка ${trip.id}`,
         );
       }
     }

@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import Booking from "../models/Booking";
 import Trip from "../models/Trip";
 import User from "../models/User";
+import { updateTripParticipantsActiveTrips } from "../services/userTripsService";
 
 // Вспомогательная функция для добавления уведомлений
 const addNotification = async (
@@ -15,7 +16,7 @@ const addNotification = async (
     | "error",
   title: string,
   message: string,
-  relatedBookingId?: string
+  relatedBookingId?: string,
 ) => {
   try {
     const user = await User.findByPk(userId);
@@ -101,6 +102,8 @@ export const createBooking = async (req: Request, res: Response) => {
       status: bookingStatus,
     });
 
+    await updateTripParticipantsActiveTrips(tripId);
+
     // Получаем обновленные данные для уведомлений
     const bookingWithDetails = await Booking.findByPk(booking.id, {
       include: [
@@ -130,7 +133,7 @@ export const createBooking = async (req: Request, res: Response) => {
         "booking_confirmed",
         "Бронь создана",
         `Вы забронировали ${seats} место(а) в поездке ${trip.from.cityKey} → ${trip.to.cityKey}. Поездка подтверждена автоматически.`,
-        booking.id
+        booking.id,
       );
     } else {
       await addNotification(
@@ -138,7 +141,7 @@ export const createBooking = async (req: Request, res: Response) => {
         "booking_request",
         "Запрос отправлен",
         `Ваш запрос на бронирование ${seats} места(а) в поездке ${trip.from.cityKey} → ${trip.to.cityKey} отправлен водителю. Ожидайте подтверждения.`,
-        booking.id
+        booking.id,
       );
     }
 
@@ -151,7 +154,7 @@ export const createBooking = async (req: Request, res: Response) => {
         `${req.user!.firstName} ${
           req.user!.lastName
         } хочет забронировать ${seats} место(а) в вашей поездке.`,
-        booking.id
+        booking.id,
       );
     } else {
       await addNotification(
@@ -161,7 +164,7 @@ export const createBooking = async (req: Request, res: Response) => {
         `${req.user!.firstName} ${
           req.user!.lastName
         } забронировал(а) ${seats} место(а) в вашей поездке через мгновенное бронирование.`,
-        booking.id
+        booking.id,
       );
     }
 
@@ -324,6 +327,7 @@ export const cancelBooking = async (req: Request, res: Response) => {
     }
 
     await booking.update({ status: "cancelled" });
+    await updateTripParticipantsActiveTrips(booking.tripId);
 
     // Добавляем уведомление водителю об отмене
     if (trip) {
@@ -336,7 +340,7 @@ export const cancelBooking = async (req: Request, res: Response) => {
         } отменил(а) бронирование на ${
           booking.seats
         } место(а) в вашей поездке.`,
-        booking.id
+        booking.id,
       );
     }
 
@@ -346,7 +350,7 @@ export const cancelBooking = async (req: Request, res: Response) => {
       "info",
       "Бронь отменена",
       `Вы отменили бронирование на ${booking.seats} место(а) в поездке ${trip?.from.cityKey} → ${trip?.to.cityKey}.`,
-      booking.id
+      booking.id,
     );
 
     res.json({
@@ -425,7 +429,7 @@ export const getPassengerActiveTrips = async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error(
       "Ошибка получения активных поездок пассажира:",
-      error.message
+      error.message,
     );
     res.status(500).json({
       success: false,

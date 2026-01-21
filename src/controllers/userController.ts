@@ -1,7 +1,5 @@
 import { Request, Response } from "express";
 import User from "../models/User";
-import Trip from "../models/Trip";
-import Booking from "../models/Booking";
 import { Op } from "sequelize";
 
 // Получить всех пользователей
@@ -126,10 +124,15 @@ export const getUserById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    // Получаем пользователя
     const user = await User.findByPk(id, {
       attributes: {
-        exclude: ["password", "verificationCode", "verificationCodeExpires"],
+        exclude: [
+          "password",
+          "verificationCode",
+          "verificationCodeExpires",
+          "notifications",
+          "reports",
+        ],
       },
     });
 
@@ -140,177 +143,7 @@ export const getUserById = async (req: Request, res: Response) => {
       });
     }
 
-    let activeTrips = [];
-
-    if (user.role === "driver") {
-      const driverTrips = await Trip.findAll({
-        where: {
-          driverId: user.id,
-          status: "active",
-        },
-        include: [
-          {
-            model: Booking,
-            as: "bookings",
-            where: { status: ["confirmed", "pending"] },
-            required: false,
-            include: [
-              {
-                model: User,
-                as: "passenger",
-                attributes: [
-                  "id",
-                  "firstName",
-                  "lastName",
-                  "avatar",
-                  "rating",
-                  "telegram",
-                  "phone",
-                ],
-              },
-            ],
-          },
-        ],
-        order: [
-          ["departureDate", "ASC"],
-          ["departureTime", "ASC"],
-        ],
-      });
-
-      activeTrips = driverTrips.map((trip) => ({
-        id: trip.id,
-        from: trip.from,
-        to: trip.to,
-        departureDate: trip.departureDate,
-        departureTime: trip.departureTime,
-        price: trip.price,
-        availableSeats: trip.availableSeats,
-        description: trip.description,
-        instantBooking: trip.instantBooking,
-        maxTwoBackSeats: trip.maxTwoBackSeats,
-        status: trip.status,
-        tripInfo: trip.tripInfo,
-        createdAt: trip.createdAt,
-        updatedAt: trip.updatedAt,
-        bookings: (trip.bookings || []).map((booking) => ({
-          id: booking.id,
-          seats: booking.seats,
-          status: booking.status,
-          createdAt: booking.createdAt,
-          updatedAt: booking.updatedAt,
-          passenger: booking.passenger
-            ? {
-                id: booking.passenger.id,
-                firstName: booking.passenger.firstName,
-                lastName: booking.passenger.lastName,
-                avatar: booking.passenger.avatar,
-                rating: booking.passenger.rating,
-                telegram: booking.passenger.telegram,
-                phone: booking.passenger.phone,
-              }
-            : null,
-        })),
-        meta: {
-          totalBookings: trip.bookings?.length || 0,
-          confirmedBookings:
-            trip.bookings?.filter((b) => b.status === "confirmed").length || 0,
-          pendingBookings:
-            trip.bookings?.filter((b) => b.status === "pending").length || 0,
-        },
-      }));
-    } else {
-      const passengerBookings = await Booking.findAll({
-        where: {
-          passengerId: user.id,
-          status: ["confirmed", "pending"],
-        },
-        include: [
-          {
-            model: Trip,
-            as: "trip",
-            where: { status: "active" },
-            include: [
-              {
-                model: User,
-                as: "driver",
-                attributes: [
-                  "id",
-                  "firstName",
-                  "lastName",
-                  "avatar",
-                  "rating",
-                  "car",
-                  "telegram",
-                  "phone",
-                ],
-              },
-            ],
-          },
-        ],
-        order: [["createdAt", "DESC"]],
-      });
-
-      activeTrips = passengerBookings
-        .map((booking) => {
-          if (!booking.trip) return null;
-
-          return {
-            id: booking.trip.id,
-            from: booking.trip.from,
-            to: booking.trip.to,
-            departureDate: booking.trip.departureDate,
-            departureTime: booking.trip.departureTime,
-            price: booking.trip.price,
-            availableSeats: booking.trip.availableSeats,
-            description: booking.trip.description,
-            instantBooking: booking.trip.instantBooking,
-            maxTwoBackSeats: booking.trip.maxTwoBackSeats,
-            status: booking.trip.status,
-            tripInfo: booking.trip.tripInfo,
-            createdAt: booking.trip.createdAt,
-            updatedAt: booking.trip.updatedAt,
-            // Информация о водителе для пассажира
-            driver: booking.trip.driver
-              ? {
-                  id: booking.trip.driver.id,
-                  firstName: booking.trip.driver.firstName,
-                  lastName: booking.trip.driver.lastName,
-                  avatar: booking.trip.driver.avatar,
-                  rating: booking.trip.driver.rating,
-                  car: booking.trip.driver.car,
-                  telegram: booking.trip.driver.telegram,
-                  phone: booking.trip.driver.phone,
-                }
-              : null,
-            // Пассажир видит только СВОЁ бронирование
-            bookings: [
-              {
-                id: booking.id,
-                seats: booking.seats,
-                status: booking.status,
-                createdAt: booking.createdAt,
-                updatedAt: booking.updatedAt,
-                // Это бронирование самого пользователя
-                isMyBooking: true,
-              },
-            ],
-            meta: {
-              isMyBooking: true,
-              bookingId: booking.id,
-            },
-          };
-        })
-        .filter((trip) => trip !== null);
-    }
-
-    const formattedTripHistory = (user.tripHistory || []).map((history) => ({
-      ...history,
-
-      ...(user.role === "passenger" && history.role === "passenger"
-        ? { passengers: undefined } // Пассажир не видит других пассажиров
-        : {}),
-    }));
-
+    // Возвращаем пользователя с его activeTrips
     res.json({
       success: true,
       data: {
@@ -322,29 +155,20 @@ export const getUserById = async (req: Request, res: Response) => {
           role: user.role,
           firstName: user.firstName,
           lastName: user.lastName,
+          birthDate: user.birthDate,
           avatar: user.avatar,
           rating: user.rating,
           isVerified: user.isVerified,
-          emailVerified: user.emailVerified,
-          phoneVerified: user.phoneVerified,
           car: user.car,
           about: user.about,
           telegram: user.telegram,
           tripsCount: user.tripsCount,
-          isBanned: user.isBanned,
-
-          reportsCount: user.reports?.length || 0,
+          activeTrips: user.activeTrips || [],
         },
-        // Активные поездки с бронированиями
-        activeTrips: activeTrips,
-        // История поездок
-        tripHistory: formattedTripHistory,
-        // Отзывы
-        reviews: user.reviews || [],
       },
     });
-  } catch (error: any) {
-    console.error("Ошибка при получении пользователя:", error.message);
+  } catch (error) {
+    console.error("Ошибка при получении пользователя:", error);
     res.status(500).json({
       success: false,
       message: "Ошибка сервера при получении пользователя",
@@ -447,7 +271,7 @@ export const updateProfile = async (req: Request, res: Response) => {
     if (firstName !== undefined) updateData.firstName = firstName;
     if (lastName !== undefined) updateData.lastName = lastName;
     if (gender !== undefined) updateData.gender = gender;
-    if (telegram !== undefined) updateData.telegram = telegram;
+    if (telegram !== undefined) updateData.telegram = telegram; // Добавляем telegram
 
     await user.update(updateData);
 
@@ -461,7 +285,7 @@ export const updateProfile = async (req: Request, res: Response) => {
           lastName: user.lastName,
           about: user.about,
           gender: user.gender,
-          telegram: user.telegram,
+          telegram: user.telegram, // Возвращаем telegram
         },
       },
     });
