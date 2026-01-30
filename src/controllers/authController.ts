@@ -275,11 +275,9 @@ export const getMe = async (req: Request, res: Response) => {
   try {
     const user = req.user!;
 
-    // Получаем активные поездки пользователя
     let activeTrips = [];
 
     if (user.role === "driver") {
-      // Для ВОДИТЕЛЯ: все его активные поездки со ВСЕМИ бронированиями
       const driverTrips = await Trip.findAll({
         where: {
           driverId: user.id,
@@ -314,7 +312,6 @@ export const getMe = async (req: Request, res: Response) => {
         ],
       });
 
-      // Форматируем для водителя
       activeTrips = driverTrips.map((trip) => ({
         id: trip.id,
         from: trip.from,
@@ -330,6 +327,7 @@ export const getMe = async (req: Request, res: Response) => {
         tripInfo: trip.tripInfo,
         createdAt: trip.createdAt,
         updatedAt: trip.updatedAt,
+
         bookings: (trip.bookings || []).map((booking) => ({
           id: booking.id,
           seats: booking.seats,
@@ -347,7 +345,10 @@ export const getMe = async (req: Request, res: Response) => {
                 phone: booking.passenger.phone,
               }
             : null,
+
+          passengerId: booking.passengerId,
         })),
+
         meta: {
           totalBookings: trip.bookings?.length || 0,
           confirmedBookings:
@@ -388,7 +389,6 @@ export const getMe = async (req: Request, res: Response) => {
         order: [["createdAt", "DESC"]],
       });
 
-      // Форматируем для пассажира
       activeTrips = passengerBookings
         .map((booking) => {
           if (!booking.trip) return null;
@@ -408,7 +408,7 @@ export const getMe = async (req: Request, res: Response) => {
             tripInfo: booking.trip.tripInfo,
             createdAt: booking.trip.createdAt,
             updatedAt: booking.trip.updatedAt,
-            // Информация о водителе для пассажира
+
             driver: booking.trip.driver
               ? {
                   id: booking.trip.driver.id,
@@ -432,6 +432,7 @@ export const getMe = async (req: Request, res: Response) => {
                 isMyBooking: true,
               },
             ],
+
             meta: {
               isMyBooking: true,
               bookingId: booking.id,
@@ -441,16 +442,45 @@ export const getMe = async (req: Request, res: Response) => {
         .filter((trip) => trip !== null);
     }
 
-    // Получаем уведомления (автоматически удаляем старые)
+    const myBookings = await Booking.findAll({
+      where: { passengerId: user.id },
+      include: [
+        {
+          model: Trip,
+          as: "trip",
+          include: [
+            {
+              model: User,
+              as: "driver",
+              attributes: [
+                "id",
+                "firstName",
+                "lastName",
+                "avatar",
+                "rating",
+                "car",
+                "telegram",
+                "phone",
+              ],
+            },
+          ],
+        },
+        {
+          model: User,
+          as: "passenger",
+          attributes: ["id", "firstName", "lastName", "avatar", "rating"],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+
     const notifications = user.notifications || [];
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
     const freshNotifications = notifications.filter(
       (notification) => new Date(notification.createdAt) > thirtyDaysAgo,
     );
 
-    // Обновляем уведомления если есть что удалить
     if (freshNotifications.length !== notifications.length) {
       await user.update({ notifications: freshNotifications });
     }
@@ -482,6 +512,7 @@ export const getMe = async (req: Request, res: Response) => {
           reports: user.reports || [],
           activeTrips: activeTrips,
         },
+        myBookings: myBookings,
         notifications: freshNotifications,
       },
     });

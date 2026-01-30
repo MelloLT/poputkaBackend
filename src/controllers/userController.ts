@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
 import User from "../models/User";
+import Booking from "../models/Booking";
+import Trip from "../models/Trip";
 import { Op } from "sequelize";
 
 // Получить всех пользователей
@@ -143,7 +145,187 @@ export const getUserById = async (req: Request, res: Response) => {
       });
     }
 
-    // Возвращаем пользователя с его activeTrips
+    let activeTrips = [];
+
+    if (user.role === "driver") {
+      const driverTrips = await Trip.findAll({
+        where: {
+          driverId: user.id,
+          status: "active",
+        },
+        include: [
+          {
+            model: Booking,
+            as: "bookings",
+            where: { status: ["confirmed", "pending"] },
+            required: false,
+            include: [
+              {
+                model: User,
+                as: "passenger",
+                attributes: [
+                  "id",
+                  "firstName",
+                  "lastName",
+                  "avatar",
+                  "rating",
+                  "telegram",
+                  "phone",
+                ],
+              },
+            ],
+          },
+        ],
+        order: [
+          ["departureDate", "ASC"],
+          ["departureTime", "ASC"],
+        ],
+      });
+
+      activeTrips = driverTrips.map((trip) => ({
+        tripId: trip.id,
+        role: "driver" as const,
+        from: trip.from,
+        to: trip.to,
+        departureDate: trip.departureDate,
+        departureTime: trip.departureTime,
+        price: trip.price,
+        availableSeats: trip.availableSeats,
+        status: "active" as const,
+        description: trip.description,
+        instantBooking: trip.instantBooking,
+        maxTwoBackSeats: trip.maxTwoBackSeats,
+        tripInfo: trip.tripInfo,
+        createdAt: trip.createdAt,
+        updatedAt: trip.updatedAt,
+        bookings: (trip.bookings || []).map((booking) => ({
+          id: booking.id,
+          passengerId: booking.passengerId,
+          passenger: booking.passenger
+            ? {
+                id: booking.passenger.id,
+                firstName: booking.passenger.firstName,
+                lastName: booking.passenger.lastName,
+                avatar: booking.passenger.avatar,
+                rating: booking.passenger.rating,
+                telegram: booking.passenger.telegram,
+                phone: booking.passenger.phone,
+              }
+            : null,
+          seats: booking.seats,
+          status: booking.status as "confirmed" | "pending",
+          createdAt: booking.createdAt,
+        })),
+      }));
+    } else {
+      // Для пассажира
+      const passengerBookings = await Booking.findAll({
+        where: {
+          passengerId: user.id,
+          status: ["confirmed", "pending"],
+        },
+        include: [
+          {
+            model: Trip,
+            as: "trip",
+            where: { status: "active" },
+            include: [
+              {
+                model: User,
+                as: "driver",
+                attributes: [
+                  "id",
+                  "firstName",
+                  "lastName",
+                  "avatar",
+                  "rating",
+                  "car",
+                  "telegram",
+                  "phone",
+                ],
+              },
+            ],
+          },
+        ],
+        order: [["createdAt", "DESC"]],
+      });
+
+      activeTrips = passengerBookings
+        .map((booking) => {
+          if (!booking.trip) return null;
+
+          return {
+            tripId: booking.trip.id,
+            role: "passenger" as const,
+            from: booking.trip.from,
+            to: booking.trip.to,
+            departureDate: booking.trip.departureDate,
+            departureTime: booking.trip.departureTime,
+            price: booking.trip.price,
+            availableSeats: booking.trip.availableSeats,
+            status: "active" as const,
+            description: booking.trip.description,
+            instantBooking: booking.trip.instantBooking,
+            maxTwoBackSeats: booking.trip.maxTwoBackSeats,
+            tripInfo: booking.trip.tripInfo,
+            createdAt: booking.trip.createdAt,
+            updatedAt: booking.trip.updatedAt,
+            myBooking: {
+              id: booking.id,
+              seats: booking.seats,
+              status: booking.status as "confirmed" | "pending",
+              createdAt: booking.createdAt,
+            },
+            counterpart: booking.trip.driver
+              ? {
+                  id: booking.trip.driver.id,
+                  firstName: booking.trip.driver.firstName,
+                  lastName: booking.trip.driver.lastName,
+                  avatar: booking.trip.driver.avatar,
+                  rating: booking.trip.driver.rating,
+                  car: booking.trip.driver.car,
+                  telegram: booking.trip.driver.telegram,
+                  phone: booking.trip.driver.phone,
+                }
+              : undefined,
+          };
+        })
+        .filter((trip) => trip !== null);
+    }
+
+    // Получаем myBookings
+    const myBookings = await Booking.findAll({
+      where: { passengerId: id },
+      include: [
+        {
+          model: Trip,
+          as: "trip",
+          include: [
+            {
+              model: User,
+              as: "driver",
+              attributes: [
+                "id",
+                "firstName",
+                "lastName",
+                "avatar",
+                "rating",
+                "car",
+                "telegram",
+                "phone",
+              ],
+            },
+          ],
+        },
+        {
+          model: User,
+          as: "passenger",
+          attributes: ["id", "firstName", "lastName", "avatar", "rating"],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+
     res.json({
       success: true,
       data: {
@@ -163,8 +345,9 @@ export const getUserById = async (req: Request, res: Response) => {
           about: user.about,
           telegram: user.telegram,
           tripsCount: user.tripsCount,
-          activeTrips: user.activeTrips || [],
+          activeTrips: activeTrips,
         },
+        myBookings: myBookings,
       },
     });
   } catch (error) {
@@ -271,7 +454,7 @@ export const updateProfile = async (req: Request, res: Response) => {
     if (firstName !== undefined) updateData.firstName = firstName;
     if (lastName !== undefined) updateData.lastName = lastName;
     if (gender !== undefined) updateData.gender = gender;
-    if (telegram !== undefined) updateData.telegram = telegram; // Добавляем telegram
+    if (telegram !== undefined) updateData.telegram = telegram;
 
     await user.update(updateData);
 
@@ -285,7 +468,7 @@ export const updateProfile = async (req: Request, res: Response) => {
           lastName: user.lastName,
           about: user.about,
           gender: user.gender,
-          telegram: user.telegram, // Возвращаем telegram
+          telegram: user.telegram,
         },
       },
     });
