@@ -290,6 +290,92 @@ export const getBookingById = async (req: Request, res: Response) => {
       });
     }
 
+    const response = {
+      success: true,
+      data: {
+        id: booking.id,
+        passengerId: booking.passengerId,
+        tripId: booking.tripId,
+        seats: booking.seats,
+        status: booking.status,
+        createdAt: booking.createdAt,
+        updatedAt: booking.updatedAt,
+        trip: booking.trip
+          ? {
+              id: booking.trip.id,
+              driverId: booking.trip.driverId,
+              from: booking.trip.from,
+              to: booking.trip.to,
+              departureDate: booking.trip.departureDate,
+              departureTime: booking.trip.departureTime,
+              price: booking.trip.price,
+              availableSeats: booking.trip.availableSeats,
+              description: booking.trip.description,
+              instantBooking: booking.trip.instantBooking,
+              maxTwoBackSeats: booking.trip.maxTwoBackSeats,
+              status: booking.trip.status,
+              tripInfo: booking.trip.tripInfo,
+              createdAt: booking.trip.createdAt,
+              updatedAt: booking.trip.updatedAt,
+              driver: booking.trip.driver
+                ? {
+                    id: booking.trip.driver.id,
+                    firstName: booking.trip.driver.firstName,
+                    lastName: booking.trip.driver.lastName,
+                    avatar: booking.trip.driver.avatar,
+                    rating: booking.trip.driver.rating,
+                    car: booking.trip.driver.car,
+                    telegram: booking.trip.driver.telegram,
+                    phone: booking.trip.driver.phone,
+                    phoneVerified: booking.trip.driver.phoneVerified,
+                  }
+                : null,
+            }
+          : null,
+        passenger: booking.passenger
+          ? {
+              id: booking.passenger.id,
+              firstName: booking.passenger.firstName,
+              lastName: booking.passenger.lastName,
+              avatar: booking.passenger.avatar,
+              rating: booking.passenger.rating,
+              telegram: booking.passenger.telegram,
+              phone: booking.passenger.phone,
+              phoneVerified: booking.passenger.phoneVerified,
+            }
+          : null,
+
+        currentUserRole: isDriver ? "driver" : "passenger",
+        counterpart: isDriver
+          ? booking.passenger
+            ? {
+                id: booking.passenger.id,
+                firstName: booking.passenger.firstName,
+                lastName: booking.passenger.lastName,
+                avatar: booking.passenger.avatar,
+                rating: booking.passenger.rating,
+                telegram: booking.passenger.telegram,
+                phone: booking.passenger.phone,
+                phoneVerified: booking.passenger.phoneVerified,
+              }
+            : null
+          : booking.trip?.driver
+            ? {
+                id: booking.trip.driver.id,
+                firstName: booking.trip.driver.firstName,
+                lastName: booking.trip.driver.lastName,
+                avatar: booking.trip.driver.avatar,
+                rating: booking.trip.driver.rating,
+                car: booking.trip.driver.car,
+                telegram: booking.trip.driver.telegram,
+                phone: booking.trip.driver.phone,
+                phoneVerified: booking.trip.driver.phoneVerified,
+              }
+            : null,
+      },
+      source: "database",
+    };
+
     res.json({
       success: true,
       data: booking,
