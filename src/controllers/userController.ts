@@ -386,60 +386,21 @@ export const getDrivers = async (req: Request, res: Response) => {
   }
 };
 
-// Обновить профиль пользователя
-export const updateUser = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user!.id;
-    const updateData = req.body;
-
-    // Пользователь может обновлять только свой профиль
-    if (req.user!.id !== id) {
-      return res.status(403).json({
-        success: false,
-        message: "Вы можете редактировать только свой профиль",
-      });
-    }
-
-    const user = await User.findByPk(id);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "Пользователь не найден",
-      });
-    }
-
-    // Не позволяем менять пароль через этот эндпоинт
-    if (updateData.password) {
-      delete updateData.password;
-    }
-
-    await user.update(updateData);
-
-    const updatedUser = await User.findByPk(id, {
-      attributes: {
-        exclude: ["password", "verificationCode", "verificationCodeExpires"],
-      },
-    });
-
-    res.json({
-      success: true,
-      message: "Профиль обновлен успешно",
-      data: updatedUser,
-    });
-  } catch (error) {
-    console.error("Ошибка при обновлении пользователя:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при обновлении пользователя",
-    });
-  }
-};
-
+// Обновить профиль пользователя (единый эндпоинт)
 export const updateProfile = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const { about, firstName, lastName, gender, telegram } = req.body;
+    const {
+      about,
+      firstName,
+      lastName,
+      gender,
+      telegram,
+      phone,
+      email,
+      birthDate,
+      avatar,
+    } = req.body;
 
     const user = await User.findByPk(userId);
     if (!user) {
@@ -450,26 +411,245 @@ export const updateProfile = async (req: Request, res: Response) => {
     }
 
     const updateData: any = {};
-    if (about !== undefined) updateData.about = about;
-    if (firstName !== undefined) updateData.firstName = firstName;
-    if (lastName !== undefined) updateData.lastName = lastName;
-    if (gender !== undefined) updateData.gender = gender;
-    if (telegram !== undefined) updateData.telegram = telegram;
+
+    // Базовые поля профиля (всегда можно менять)
+    if (about !== undefined) {
+      if (typeof about !== "string" || about.length > 1000) {
+        return res.status(400).json({
+          success: false,
+          message: "Поле 'about' должно быть строкой не более 1000 символов",
+        });
+      }
+      updateData.about = about.trim();
+    }
+
+    if (firstName !== undefined) {
+      if (
+        typeof firstName !== "string" ||
+        firstName.length < 2 ||
+        firstName.length > 50
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Имя должно быть от 2 до 50 символов",
+        });
+      }
+      updateData.firstName = firstName.trim();
+    }
+
+    if (lastName !== undefined) {
+      if (
+        typeof lastName !== "string" ||
+        lastName.length < 2 ||
+        lastName.length > 50
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Фамилия должна быть от 2 до 50 символов",
+        });
+      }
+      updateData.lastName = lastName.trim();
+    }
+
+    if (gender !== undefined) {
+      if (!["male", "female"].includes(gender)) {
+        return res.status(400).json({
+          success: false,
+          message: "Пол должен быть 'male' или 'female'",
+        });
+      }
+      updateData.gender = gender;
+    }
+
+    if (telegram !== undefined) {
+      if (telegram !== null && telegram !== "") {
+        const telegramRegex = /^@?[a-zA-Z0-9_]{5,32}$/;
+        if (!telegramRegex.test(telegram)) {
+          return res.status(400).json({
+            success: false,
+            message: "Неверный формат Telegram username",
+          });
+        }
+        updateData.telegram = telegram.startsWith("@")
+          ? telegram
+          : `@${telegram}`;
+      } else {
+        updateData.telegram = null;
+      }
+    }
+
+    // Дата рождения
+    if (birthDate !== undefined) {
+      const birthDateObj = new Date(birthDate);
+      const today = new Date();
+      const minAgeDate = new Date(
+        today.getFullYear() - 18,
+        today.getMonth(),
+        today.getDate(),
+      );
+
+      if (isNaN(birthDateObj.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: "Неверный формат даты рождения",
+        });
+      }
+
+      if (birthDateObj > minAgeDate) {
+        return res.status(400).json({
+          success: false,
+          message: "Возраст должен быть не менее 18 лет",
+        });
+      }
+
+      if (birthDateObj > today) {
+        return res.status(400).json({
+          success: false,
+          message: "Дата рождения не может быть в будущем",
+        });
+      }
+
+      updateData.birthDate = birthDate;
+    }
+
+    // Аватар
+    if (avatar !== undefined) {
+      if (avatar && typeof avatar !== "string") {
+        return res.status(400).json({
+          success: false,
+          message: "Avatar должен быть строкой (URL)",
+        });
+      }
+      updateData.avatar = avatar || null;
+    }
+
+    // Email (требует верификации)
+    if (email !== undefined && email !== user.email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const allowedDomains = [
+        "gmail.com",
+        "mail.ru",
+        "yandex.ru",
+        "yahoo.com",
+        "outlook.com",
+        "icloud.com",
+        "uz",
+        "umail.uz",
+      ];
+      const emailDomain = email.split("@")[1];
+
+      if (
+        !emailRegex.test(email) ||
+        !allowedDomains.includes(emailDomain?.toLowerCase())
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Неверный формат email",
+        });
+      }
+
+      // Проверяем уникальность
+      const existingUser = await User.findOne({
+        where: { email, id: { [Op.ne]: userId } },
+      });
+
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: "Этот email уже используется другим пользователем",
+        });
+      }
+
+      updateData.email = email;
+      updateData.emailVerified = false; // Требует повторной верификации
+    }
+
+    // Телефон (требует верификации)
+    if (phone !== undefined && phone !== user.phone) {
+      const phoneRegex = /^\+?[0-9]{11,15}$/;
+      if (!phoneRegex.test(phone.replace(/\s/g, ""))) {
+        return res.status(400).json({
+          success: false,
+          message: "Неверный формат номера телефона",
+        });
+      }
+
+      // Проверяем уникальность
+      const existingUser = await User.findOne({
+        where: { phone, id: { [Op.ne]: userId } },
+      });
+
+      if (existingUser) {
+        return res.status(404).json({
+          success: false,
+          message: "Этот номер телефона уже используется другим пользователем",
+        });
+      }
+
+      updateData.phone = phone;
+      updateData.phoneVerified = false; // Требует повторной верификации
+    }
+
+    // Запрещаем менять системные поля
+    const forbiddenFields = [
+      "id",
+      "username",
+      "password",
+      "role",
+      "rating",
+      "isVerified",
+      "verificationCode",
+      "verificationCodeExpires",
+      "isBanned",
+      "banReason",
+      "bannedUntil",
+      "reports",
+      "reviews",
+      "activeTrips",
+      "notifications",
+      "tripHistory",
+      "tripsCount",
+      "car", // car меняется через отдельный эндпоинт
+    ];
+
+    for (const field of forbiddenFields) {
+      if (req.body[field] !== undefined) {
+        return res.status(403).json({
+          success: false,
+          message: `Вы не можете менять поле: ${field}`,
+        });
+      }
+    }
+
+    // Если нет полей для обновления
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Нет данных для обновления",
+      });
+    }
 
     await user.update(updateData);
+
+    // Получаем обновленного пользователя
+    const updatedUser = await User.findByPk(userId, {
+      attributes: {
+        exclude: ["password", "verificationCode", "verificationCodeExpires"],
+      },
+    });
+
+    // Определяем, нужно ли отправлять верификацию
+    const requiresVerification = {
+      email: email !== undefined && email !== user.email,
+      phone: phone !== undefined && phone !== user.phone,
+    };
 
     res.json({
       success: true,
       message: "Профиль обновлен успешно",
       data: {
-        user: {
-          id: user.id,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          about: user.about,
-          gender: user.gender,
-          telegram: user.telegram,
-        },
+        user: updatedUser,
+        requiresVerification,
       },
     });
   } catch (error: any) {
