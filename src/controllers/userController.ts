@@ -3,6 +3,8 @@ import User from "../models/User";
 import Booking from "../models/Booking";
 import Trip from "../models/Trip";
 import { Op } from "sequelize";
+import { validators, ProfileUpdateInput } from "../validation/profileSchemas";
+import { ZodError } from "zod";
 
 // Получить всех пользователей
 export const getUsers = async (req: Request, res: Response) => {
@@ -183,7 +185,7 @@ export const getUserById = async (req: Request, res: Response) => {
       });
 
       activeTrips = driverTrips.map((trip) => ({
-        tripId: trip.id,
+        id: trip.id,
         role: "driver" as const,
         from: trip.from,
         to: trip.to,
@@ -255,7 +257,7 @@ export const getUserById = async (req: Request, res: Response) => {
           if (!booking.trip) return null;
 
           return {
-            tripId: booking.trip.id,
+            id: booking.trip.id,
             role: "passenger" as const,
             from: booking.trip.from,
             to: booking.trip.to,
@@ -276,7 +278,7 @@ export const getUserById = async (req: Request, res: Response) => {
               status: booking.status as "confirmed" | "pending",
               createdAt: booking.createdAt,
             },
-            counterpart: booking.trip.driver
+            driver: booking.trip.driver
               ? {
                   id: booking.trip.driver.id,
                   firstName: booking.trip.driver.firstName,
@@ -390,207 +392,9 @@ export const getDrivers = async (req: Request, res: Response) => {
 export const updateProfile = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const {
-      about,
-      firstName,
-      lastName,
-      gender,
-      telegram,
-      phone,
-      email,
-      birthDate,
-      avatar,
-    } = req.body;
+    const updates = req.body;
 
-    const user = await User.findByPk(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "Пользователь не найден",
-      });
-    }
-
-    const updateData: any = {};
-
-    // Базовые поля профиля (всегда можно менять)
-    if (about !== undefined) {
-      if (typeof about !== "string" || about.length > 1000) {
-        return res.status(400).json({
-          success: false,
-          message: "Поле 'about' должно быть строкой не более 1000 символов",
-        });
-      }
-      updateData.about = about.trim();
-    }
-
-    if (firstName !== undefined) {
-      if (
-        typeof firstName !== "string" ||
-        firstName.length < 2 ||
-        firstName.length > 50
-      ) {
-        return res.status(400).json({
-          success: false,
-          message: "Имя должно быть от 2 до 50 символов",
-        });
-      }
-      updateData.firstName = firstName.trim();
-    }
-
-    if (lastName !== undefined) {
-      if (
-        typeof lastName !== "string" ||
-        lastName.length < 2 ||
-        lastName.length > 50
-      ) {
-        return res.status(400).json({
-          success: false,
-          message: "Фамилия должна быть от 2 до 50 символов",
-        });
-      }
-      updateData.lastName = lastName.trim();
-    }
-
-    if (gender !== undefined) {
-      if (!["male", "female"].includes(gender)) {
-        return res.status(400).json({
-          success: false,
-          message: "Пол должен быть 'male' или 'female'",
-        });
-      }
-      updateData.gender = gender;
-    }
-
-    if (telegram !== undefined) {
-      if (telegram !== null && telegram !== "") {
-        const telegramRegex = /^@?[a-zA-Z0-9_]{5,32}$/;
-        if (!telegramRegex.test(telegram)) {
-          return res.status(400).json({
-            success: false,
-            message: "Неверный формат Telegram username",
-          });
-        }
-        updateData.telegram = telegram.startsWith("@")
-          ? telegram
-          : `@${telegram}`;
-      } else {
-        updateData.telegram = null;
-      }
-    }
-
-    // Дата рождения
-    if (birthDate !== undefined) {
-      const birthDateObj = new Date(birthDate);
-      const today = new Date();
-      const minAgeDate = new Date(
-        today.getFullYear() - 18,
-        today.getMonth(),
-        today.getDate(),
-      );
-
-      if (isNaN(birthDateObj.getTime())) {
-        return res.status(400).json({
-          success: false,
-          message: "Неверный формат даты рождения",
-        });
-      }
-
-      if (birthDateObj > minAgeDate) {
-        return res.status(400).json({
-          success: false,
-          message: "Возраст должен быть не менее 18 лет",
-        });
-      }
-
-      if (birthDateObj > today) {
-        return res.status(400).json({
-          success: false,
-          message: "Дата рождения не может быть в будущем",
-        });
-      }
-
-      updateData.birthDate = birthDate;
-    }
-
-    // Аватар
-    if (avatar !== undefined) {
-      if (avatar && typeof avatar !== "string") {
-        return res.status(400).json({
-          success: false,
-          message: "Avatar должен быть строкой (URL)",
-        });
-      }
-      updateData.avatar = avatar || null;
-    }
-
-    // Email (требует верификации)
-    if (email !== undefined && email !== user.email) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      const allowedDomains = [
-        "gmail.com",
-        "mail.ru",
-        "yandex.ru",
-        "yahoo.com",
-        "outlook.com",
-        "icloud.com",
-        "uz",
-        "umail.uz",
-      ];
-      const emailDomain = email.split("@")[1];
-
-      if (
-        !emailRegex.test(email) ||
-        !allowedDomains.includes(emailDomain?.toLowerCase())
-      ) {
-        return res.status(400).json({
-          success: false,
-          message: "Неверный формат email",
-        });
-      }
-
-      // Проверяем уникальность
-      const existingUser = await User.findOne({
-        where: { email, id: { [Op.ne]: userId } },
-      });
-
-      if (existingUser) {
-        return res.status(400).json({
-          success: false,
-          message: "Этот email уже используется другим пользователем",
-        });
-      }
-
-      updateData.email = email;
-      updateData.emailVerified = false; // Требует повторной верификации
-    }
-
-    // Телефон (требует верификации)
-    if (phone !== undefined && phone !== user.phone) {
-      const phoneRegex = /^\+?[0-9]{11,15}$/;
-      if (!phoneRegex.test(phone.replace(/\s/g, ""))) {
-        return res.status(400).json({
-          success: false,
-          message: "Неверный формат номера телефона",
-        });
-      }
-
-      // Проверяем уникальность
-      const existingUser = await User.findOne({
-        where: { phone, id: { [Op.ne]: userId } },
-      });
-
-      if (existingUser) {
-        return res.status(404).json({
-          success: false,
-          message: "Этот номер телефона уже используется другим пользователем",
-        });
-      }
-
-      updateData.phone = phone;
-      updateData.phoneVerified = false; // Требует повторной верификации
-    }
-
-    // Запрещаем менять системные поля
+    // Запрещенные поля
     const forbiddenFields = [
       "id",
       "username",
@@ -609,11 +413,12 @@ export const updateProfile = async (req: Request, res: Response) => {
       "notifications",
       "tripHistory",
       "tripsCount",
-      "car", // car меняется через отдельный эндпоинт
+      "car",
     ];
 
+    // Проверяем нет ли запрещенных полей
     for (const field of forbiddenFields) {
-      if (req.body[field] !== undefined) {
+      if (field in updates) {
         return res.status(403).json({
           success: false,
           message: `Вы не можете менять поле: ${field}`,
@@ -622,14 +427,94 @@ export const updateProfile = async (req: Request, res: Response) => {
     }
 
     // Если нет полей для обновления
-    if (Object.keys(updateData).length === 0) {
+    if (Object.keys(updates).length === 0) {
       return res.status(400).json({
         success: false,
         message: "Нет данных для обновления",
       });
     }
 
-    await user.update(updateData);
+    // Валидируем каждое поле через словарь - O(1) доступ
+    const validatedData: Record<string, any> = {};
+    const errors: Record<string, string> = {};
+
+    for (const [key, value] of Object.entries(updates)) {
+      const validator = validators[key];
+
+      if (!validator) {
+        // Если поле не в белом списке - игнорируем
+        console.log(`Поле ${key} не поддерживается для обновления`);
+        continue;
+      }
+
+      try {
+        // Если value === undefined, пропускаем
+        if (value === undefined) continue;
+
+        const validated = validator.parse(value);
+        validatedData[key] = validated;
+      } catch (error) {
+        if (error instanceof ZodError) {
+          errors[key] = error.issues[0]?.message || `Ошибка валидации ${key}`;
+        }
+      }
+    }
+
+    // Если есть ошибки валидации
+    if (Object.keys(errors).length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Ошибка валидации",
+        errors,
+      });
+    }
+
+    // Если нет валидных данных
+    if (Object.keys(validatedData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Нет валидных данных для обновления",
+      });
+    }
+
+    // Получаем пользователя
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Пользователь не найден",
+      });
+    }
+
+    // Проверяем уникальность email/phone если они меняются
+    if (validatedData.email && validatedData.email !== user.email) {
+      const existing = await User.findOne({
+        where: { email: validatedData.email, id: { [Op.ne]: userId } },
+      });
+      if (existing) {
+        return res.status(400).json({
+          success: false,
+          message: "Email уже используется",
+        });
+      }
+      validatedData.emailVerified = false;
+    }
+
+    if (validatedData.phone && validatedData.phone !== user.phone) {
+      const existing = await User.findOne({
+        where: { phone: validatedData.phone, id: { [Op.ne]: userId } },
+      });
+      if (existing) {
+        return res.status(400).json({
+          success: false,
+          message: "Телефон уже используется",
+        });
+      }
+      validatedData.phoneVerified = false;
+    }
+
+    // Обновляем пользователя
+    await user.update(validatedData);
 
     // Получаем обновленного пользователя
     const updatedUser = await User.findByPk(userId, {
@@ -638,25 +523,22 @@ export const updateProfile = async (req: Request, res: Response) => {
       },
     });
 
-    // Определяем, нужно ли отправлять верификацию
-    const requiresVerification = {
-      email: email !== undefined && email !== user.email,
-      phone: phone !== undefined && phone !== user.phone,
-    };
-
     res.json({
       success: true,
-      message: "Профиль обновлен успешно",
+      message: "Профиль обновлен",
       data: {
         user: updatedUser,
-        requiresVerification,
+        requiresVerification: {
+          email: validatedData.email && validatedData.email !== user.email,
+          phone: validatedData.phone && validatedData.phone !== user.phone,
+        },
       },
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Ошибка обновления профиля:", error);
     res.status(500).json({
       success: false,
-      message: "Ошибка сервера при обновлении профиля",
+      message: "Ошибка сервера",
     });
   }
 };

@@ -13,7 +13,7 @@ export const updateUserActiveTrips = async (userId: string) => {
     if (!user) return;
 
     const activeTripsData: Array<{
-      tripId: string;
+      id: string;
       role: "driver" | "passenger";
       from: Location;
       to: Location;
@@ -44,7 +44,7 @@ export const updateUserActiveTrips = async (userId: string) => {
         status: "confirmed" | "pending";
         createdAt: Date;
       };
-      counterpart?: {
+      driver?: {
         id: string;
         firstName: string;
         lastName: string;
@@ -132,7 +132,7 @@ export const updateUserActiveTrips = async (userId: string) => {
         }
 
         const tripData = {
-          tripId: trip.id,
+          id: trip.id,
           role: "driver" as const,
           from: trip.from,
           to: trip.to,
@@ -182,7 +182,7 @@ export const updateUserActiveTrips = async (userId: string) => {
         if (!booking.trip || !booking.trip.driver) continue;
 
         const tripData = {
-          tripId: booking.trip.id,
+          id: booking.trip.id,
           role: "passenger" as const,
           from: booking.trip.from,
           to: booking.trip.to,
@@ -197,7 +197,7 @@ export const updateUserActiveTrips = async (userId: string) => {
             status: booking.status as "confirmed" | "pending",
             createdAt: booking.createdAt,
           },
-          counterpart: {
+          driver: {
             id: booking.trip.driver.id,
             firstName: booking.trip.driver.firstName || "",
             lastName: booking.trip.driver.lastName || "",

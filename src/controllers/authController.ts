@@ -314,6 +314,7 @@ export const getMe = async (req: Request, res: Response) => {
 
       activeTrips = driverTrips.map((trip) => ({
         id: trip.id,
+        role: "driver" as const,
         from: trip.from,
         to: trip.to,
         departureDate: trip.departureDate,
@@ -348,14 +349,6 @@ export const getMe = async (req: Request, res: Response) => {
 
           passengerId: booking.passengerId,
         })),
-
-        meta: {
-          totalBookings: trip.bookings?.length || 0,
-          confirmedBookings:
-            trip.bookings?.filter((b) => b.status === "confirmed").length || 0,
-          pendingBookings:
-            trip.bookings?.filter((b) => b.status === "pending").length || 0,
-        },
       }));
     } else {
       const passengerBookings = await Booking.findAll({
@@ -395,6 +388,7 @@ export const getMe = async (req: Request, res: Response) => {
 
           return {
             id: booking.trip.id,
+            role: "passenger" as const,
             from: booking.trip.from,
             to: booking.trip.to,
             departureDate: booking.trip.departureDate,
@@ -421,21 +415,11 @@ export const getMe = async (req: Request, res: Response) => {
                   phone: booking.trip.driver.phone,
                 }
               : null,
-
-            bookings: [
-              {
-                id: booking.id,
-                seats: booking.seats,
-                status: booking.status,
-                createdAt: booking.createdAt,
-                updatedAt: booking.updatedAt,
-                isMyBooking: true,
-              },
-            ],
-
-            meta: {
-              isMyBooking: true,
-              bookingId: booking.id,
+            myBooking: {
+              id: booking.id,
+              seats: booking.seats,
+              status: booking.status as "confirmed" | "pending",
+              createdAt: booking.createdAt,
             },
           };
         })

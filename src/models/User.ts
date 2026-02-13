@@ -47,7 +47,7 @@ interface UserAttributes {
     photos?: string[];
   };
   activeTrips: Array<{
-    tripId: string;
+    id: string;
     role: "driver" | "passenger";
     from: Location;
     to: Location;
@@ -81,7 +81,7 @@ interface UserAttributes {
       createdAt: Date;
     };
     // Общая информация о второй стороне
-    counterpart?: {
+    driver?: {
       id: string;
       firstName: string;
       lastName: string;
@@ -210,7 +210,7 @@ class User
     photos?: string[];
   };
   public activeTrips!: Array<{
-    tripId: string;
+    id: string;
     role: "driver" | "passenger";
     from: Location;
     to: Location;

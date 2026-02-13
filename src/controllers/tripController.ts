@@ -65,6 +65,9 @@ export const getTrips = async (req: Request, res: Response) => {
       timeFrom,
       timeTo,
       driverGender,
+      sortBy,
+      instantBooking,
+      verifiedDriver,
     } = req.query;
 
     console.log("Фильтры запроса:", {
@@ -77,6 +80,9 @@ export const getTrips = async (req: Request, res: Response) => {
       timeFrom,
       timeTo,
       driverGender,
+      sortBy,
+      instantBooking,
+      verifiedDriver,
     });
 
     const whereClause: any = { status: "active" };

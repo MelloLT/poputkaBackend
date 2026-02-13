@@ -15,7 +15,7 @@ declare global {
 export const checkSelfBooking = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const { tripId } = req.body;
@@ -50,7 +50,7 @@ export const checkSelfBooking = async (
 export const checkTripActive = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const { tripId } = req.body;
@@ -84,14 +84,21 @@ export const checkTripActive = async (
 export const checkFutureTrip = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
-    const { departureDate, departureTime } = req.body;
+    const { departureAt } = req.body;
 
-    if (departureDate && departureTime) {
-      const tripDateTime = new Date(`${departureDate}T${departureTime}:00`);
+    if (departureAt) {
+      const tripDateTime = new Date(departureAt);
       const now = new Date();
+
+      if (isNaN(tripDateTime.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: "Неверный формат даты и времени",
+        });
+      }
 
       if (tripDateTime <= now) {
         return res.status(400).json({
@@ -115,7 +122,7 @@ export const checkFutureTrip = async (
 export const checkSelfReview = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const { targetUserId } = req.body;
@@ -142,7 +149,7 @@ export const checkSelfReview = async (
 export const checkDuplicateReview = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const { tripId, targetUserId } = req.body;
@@ -151,7 +158,7 @@ export const checkDuplicateReview = async (
     const targetUser = await User.findByPk(targetUserId);
     if (targetUser && targetUser.reviews) {
       const existingReview = targetUser.reviews.find(
-        (review) => review.authorId === userId && review.tripId === tripId
+        (review) => review.authorId === userId && review.tripId === tripId,
       );
 
       if (existingReview) {
@@ -176,7 +183,7 @@ export const checkDuplicateReview = async (
 export const checkProfileOwnership = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const { id } = req.params;
@@ -203,7 +210,7 @@ export const checkProfileOwnership = async (
 export const checkMaxBookings = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const { tripId } = req.body;

@@ -35,16 +35,15 @@ export interface TripAttributes {
   };
 }
 
-export interface TripCreationAttributes
-  extends Optional<
-    TripAttributes,
-    | "id"
-    | "description"
-    | "status"
-    | "instantBooking"
-    | "maxTwoBackSeats"
-    | "tripInfo"
-  > {}
+export interface TripCreationAttributes extends Optional<
+  TripAttributes,
+  | "id"
+  | "description"
+  | "status"
+  | "instantBooking"
+  | "maxTwoBackSeats"
+  | "tripInfo"
+> {}
 
 class Trip
   extends Model<TripAttributes, TripCreationAttributes>
@@ -146,7 +145,7 @@ Trip.init(
     tableName: "trips",
     sequelize,
     timestamps: true,
-  }
+  },
 );
 
 export default Trip;
