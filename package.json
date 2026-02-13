@@ -38,6 +38,7 @@
     "@types/nanoid": "^2.1.0",
     "@types/node": "^20.19.24",
     "nodemon": "^3.1.10",
+    "ts-json-schema-generator": "^2.5.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   }

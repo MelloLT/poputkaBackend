@@ -193,15 +193,20 @@ export const getUserById = async (req: Request, res: Response) => {
         departureTime: trip.departureTime,
         price: trip.price,
         availableSeats: trip.availableSeats,
-        status: "active" as const,
+        status: trip.status,
         description: trip.description,
         instantBooking: trip.instantBooking,
         maxTwoBackSeats: trip.maxTwoBackSeats,
         tripInfo: trip.tripInfo,
         createdAt: trip.createdAt,
         updatedAt: trip.updatedAt,
+
         bookings: (trip.bookings || []).map((booking) => ({
           id: booking.id,
+          seats: booking.seats,
+          status: booking.status,
+          createdAt: booking.createdAt,
+          updatedAt: booking.updatedAt,
           passengerId: booking.passengerId,
           passenger: booking.passenger
             ? {
@@ -213,10 +218,7 @@ export const getUserById = async (req: Request, res: Response) => {
                 telegram: booking.passenger.telegram,
                 phone: booking.passenger.phone,
               }
-            : null,
-          seats: booking.seats,
-          status: booking.status as "confirmed" | "pending",
-          createdAt: booking.createdAt,
+            : undefined,
         })),
       }));
     } else {
@@ -265,7 +267,7 @@ export const getUserById = async (req: Request, res: Response) => {
             departureTime: booking.trip.departureTime,
             price: booking.trip.price,
             availableSeats: booking.trip.availableSeats,
-            status: "active" as const,
+            status: booking.trip.status,
             description: booking.trip.description,
             instantBooking: booking.trip.instantBooking,
             maxTwoBackSeats: booking.trip.maxTwoBackSeats,

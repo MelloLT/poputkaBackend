@@ -468,7 +468,15 @@ export const getMe = async (req: Request, res: Response) => {
     if (freshNotifications.length !== notifications.length) {
       await user.update({ notifications: freshNotifications });
     }
-
+    // В конце getMe или getUserById перед res.json()
+    console.log(
+      "ACTIVE_TRIPS_STRUCTURE:",
+      JSON.stringify(activeTrips[0], null, 2),
+    );
+    console.log(
+      "MY_BOOKINGS_STRUCTURE:",
+      JSON.stringify(myBookings[0], null, 2),
+    );
     res.json({
       success: true,
       message: "Данные пользователя",
