@@ -3,7 +3,10 @@ import User from "../models/User";
 import Booking from "../models/Booking";
 import Trip from "../models/Trip";
 import { Op } from "sequelize";
-import { validators, ProfileUpdateInput } from "../validation/profileSchemas";
+import {
+  updateProfileSchema,
+  UpdateProfileInput,
+} from "../utils/validationSchemas";
 import { ZodError } from "zod";
 
 // Получить всех пользователей
@@ -390,11 +393,18 @@ export const getDrivers = async (req: Request, res: Response) => {
   }
 };
 
-// Обновить профиль пользователя (единый эндпоинт)
+// Обновить профиль пользователя
 export const updateProfile = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const updates = req.body;
+    const user = await User.findByPk(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Пользователь не найден",
+      });
+    }
 
     // Запрещенные поля
     const forbiddenFields = [
@@ -418,9 +428,8 @@ export const updateProfile = async (req: Request, res: Response) => {
       "car",
     ];
 
-    // Проверяем нет ли запрещенных полей
     for (const field of forbiddenFields) {
-      if (field in updates) {
+      if (req.body[field] !== undefined) {
         return res.status(403).json({
           success: false,
           message: `Вы не можете менять поле: ${field}`,
@@ -428,97 +437,92 @@ export const updateProfile = async (req: Request, res: Response) => {
       }
     }
 
-    // Если нет полей для обновления
-    if (Object.keys(updates).length === 0) {
+    // Zod
+    let validatedData: UpdateProfileInput;
+    try {
+      validatedData = updateProfileSchema.parse(req.body);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        const errors = error.issues.map((issue: any) => ({
+          field: issue.path.join("."),
+          message: issue.message,
+        }));
+
+        return res.status(400).json({
+          success: false,
+          message: "Ошибка валидации",
+          errors,
+        });
+      }
+      throw error;
+    }
+
+    const updateData: any = {};
+
+    const fieldsToUpdate: (keyof UpdateProfileInput)[] = [
+      "firstName",
+      "lastName",
+      "about",
+      "telegram",
+      "email",
+      "phone",
+      "birthDate",
+      "gender",
+      "avatar",
+    ];
+
+    for (const field of fieldsToUpdate) {
+      if (validatedData[field] !== undefined) {
+        // Для email и phone нужно проверить уникальность, тут оставила if else
+        if (
+          field === "email" &&
+          validatedData.email &&
+          validatedData.email !== user.email
+        ) {
+          const existingUser = await User.findOne({
+            where: { email: validatedData.email, id: { [Op.ne]: userId } },
+          });
+          if (existingUser) {
+            return res.status(400).json({
+              success: false,
+              message: "Этот email уже используется",
+            });
+          }
+          updateData.email = validatedData.email;
+          updateData.emailVerified = false;
+        } else if (
+          field === "phone" &&
+          validatedData.phone &&
+          validatedData.phone !== user.phone
+        ) {
+          const existingUser = await User.findOne({
+            where: { phone: validatedData.phone, id: { [Op.ne]: userId } },
+          });
+          if (existingUser) {
+            return res.status(400).json({
+              success: false,
+              message: "Этот телефон уже используется",
+            });
+          }
+          updateData.phone = validatedData.phone;
+          updateData.phoneVerified = false;
+        } else {
+          // Просто копируем значение
+          updateData[field] = validatedData[field];
+        }
+      }
+    }
+
+    // Если нет данных для обновления
+    if (Object.keys(updateData).length === 0) {
       return res.status(400).json({
         success: false,
         message: "Нет данных для обновления",
       });
     }
 
-    // Валидируем каждое поле через словарь - O(1) доступ
-    const validatedData: Record<string, any> = {};
-    const errors: Record<string, string> = {};
+    await user.update(updateData);
 
-    for (const [key, value] of Object.entries(updates)) {
-      const validator = validators[key];
-
-      if (!validator) {
-        // Если поле не в белом списке - игнорируем
-        console.log(`Поле ${key} не поддерживается для обновления`);
-        continue;
-      }
-
-      try {
-        // Если value === undefined, пропускаем
-        if (value === undefined) continue;
-
-        const validated = validator.parse(value);
-        validatedData[key] = validated;
-      } catch (error) {
-        if (error instanceof ZodError) {
-          errors[key] = error.issues[0]?.message || `Ошибка валидации ${key}`;
-        }
-      }
-    }
-
-    // Если есть ошибки валидации
-    if (Object.keys(errors).length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Ошибка валидации",
-        errors,
-      });
-    }
-
-    // Если нет валидных данных
-    if (Object.keys(validatedData).length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Нет валидных данных для обновления",
-      });
-    }
-
-    // Получаем пользователя
-    const user = await User.findByPk(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "Пользователь не найден",
-      });
-    }
-
-    // Проверяем уникальность email/phone если они меняются
-    if (validatedData.email && validatedData.email !== user.email) {
-      const existing = await User.findOne({
-        where: { email: validatedData.email, id: { [Op.ne]: userId } },
-      });
-      if (existing) {
-        return res.status(400).json({
-          success: false,
-          message: "Email уже используется",
-        });
-      }
-      validatedData.emailVerified = false;
-    }
-
-    if (validatedData.phone && validatedData.phone !== user.phone) {
-      const existing = await User.findOne({
-        where: { phone: validatedData.phone, id: { [Op.ne]: userId } },
-      });
-      if (existing) {
-        return res.status(400).json({
-          success: false,
-          message: "Телефон уже используется",
-        });
-      }
-      validatedData.phoneVerified = false;
-    }
-
-    // Обновляем пользователя
-    await user.update(validatedData);
-
-    // Получаем обновленного пользователя
     const updatedUser = await User.findByPk(userId, {
       attributes: {
         exclude: ["password", "verificationCode", "verificationCodeExpires"],
@@ -527,20 +531,14 @@ export const updateProfile = async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      message: "Профиль обновлен",
-      data: {
-        user: updatedUser,
-        requiresVerification: {
-          email: validatedData.email && validatedData.email !== user.email,
-          phone: validatedData.phone && validatedData.phone !== user.phone,
-        },
-      },
+      message: "Профиль обновлен успешно",
+      data: { user: updatedUser },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Ошибка обновления профиля:", error);
     res.status(500).json({
       success: false,
-      message: "Ошибка сервера",
+      message: "Ошибка сервера при обновлении профиля",
     });
   }
 };
