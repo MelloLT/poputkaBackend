@@ -252,10 +252,16 @@ export const seedData = async () => {
       seats: 1,
       status: "confirmed",
     });
-   
+  } catch (error: any) {
+    console.log("\nОШИБКА");
+    console.error("Сообщение:", error.message);
+    console.error("Stack:", error.stack);
+  }
+};
+
 seedData()
   .then(() => {
-   
+    console.log("\nSeed завершен!");
     process.exit(0);
   })
   .catch((error) => {
