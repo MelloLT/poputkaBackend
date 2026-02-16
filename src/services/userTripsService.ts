@@ -17,8 +17,7 @@ export const updateUserActiveTrips = async (userId: string) => {
       role: "driver" | "passenger";
       from: Location;
       to: Location;
-      departureDate: string;
-      departureTime: string;
+      departureAt: Date;
       price: number;
       availableSeats: number;
       status: "active";
@@ -86,10 +85,7 @@ export const updateUserActiveTrips = async (userId: string) => {
             ],
           },
         ],
-        order: [
-          ["departureDate", "ASC"],
-          ["departureTime", "ASC"],
-        ],
+        order: [["departureAt", "ASC"]],
       });
 
       for (const trip of driverTrips) {
@@ -136,8 +132,7 @@ export const updateUserActiveTrips = async (userId: string) => {
           role: "driver" as const,
           from: trip.from,
           to: trip.to,
-          departureDate: trip.departureDate,
-          departureTime: trip.departureTime,
+          departureAt: trip.departureAt,
           price: trip.price,
           availableSeats: trip.availableSeats,
           status: "active" as const,
@@ -186,8 +181,7 @@ export const updateUserActiveTrips = async (userId: string) => {
           role: "passenger" as const,
           from: booking.trip.from,
           to: booking.trip.to,
-          departureDate: booking.trip.departureDate,
-          departureTime: booking.trip.departureTime,
+          departureAt: booking.trip.departureAt,
           price: booking.trip.price,
           availableSeats: booking.trip.availableSeats,
           status: "active" as const,

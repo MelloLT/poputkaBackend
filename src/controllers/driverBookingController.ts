@@ -32,7 +32,7 @@ export const getDriverBookings = async (req: Request, res: Response) => {
         {
           model: Trip,
           as: "trip",
-          attributes: ["id", "from", "to", "departureDate", "departureTime"],
+          attributes: ["id", "from", "to", "departureAt"],
           include: [
             {
               model: User,
@@ -268,7 +268,7 @@ export const getDriverTripHistory = async (req: Request, res: Response) => {
           ],
         },
       ],
-      order: [["departureDate", "DESC"]],
+      order: [["departureAt", "DESC"]],
     });
 
     console.log("Найдено поездок:", trips.length);

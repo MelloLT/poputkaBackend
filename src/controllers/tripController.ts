@@ -58,22 +58,22 @@ export const getTrips = async (req: Request, res: Response) => {
     const {
       from,
       to,
-      date,
+      departureAt,
       minPrice,
       maxPrice,
       seats,
       timeFrom,
       timeTo,
       driverGender,
-      sortBy,
-      instantBooking,
-      verifiedDriver,
+      sortBy = "earliest",
+      instantBookingOnly = false,
+      verifiedOnly = false,
     } = req.query;
 
     console.log("Фильтры запроса:", {
       from,
       to,
-      date,
+      departureAt,
       minPrice,
       maxPrice,
       seats,
@@ -81,8 +81,8 @@ export const getTrips = async (req: Request, res: Response) => {
       timeTo,
       driverGender,
       sortBy,
-      instantBooking,
-      verifiedDriver,
+      instantBookingOnly,
+      verifiedOnly,
     });
 
     const whereClause: any = { status: "active" };
@@ -117,15 +117,21 @@ export const getTrips = async (req: Request, res: Response) => {
       };
     }
 
-    if (date) {
-      whereClause.departureDate = date.toString();
-    }
+    // Фильтр по дате отправления
+    if (departureAt) {
+      const date = new Date(departureAt as string);
+      if (!isNaN(date.getTime())) {
+        // Ищем поездки на эту дату (в течение дня)
+        const startOfDay = new Date(date);
+        startOfDay.setUTCHours(0, 0, 0, 0);
 
-    // Фильтр по времени (сравниваем строки "HH:mm")
-    if (timeFrom || timeTo) {
-      whereClause.departureTime = {};
-      if (timeFrom) whereClause.departureTime[Op.gte] = timeFrom.toString();
-      if (timeTo) whereClause.departureTime[Op.lte] = timeTo.toString();
+        const endOfDay = new Date(date);
+        endOfDay.setUTCHours(23, 59, 59, 999);
+
+        whereClause.departureAt = {
+          [Op.between]: [startOfDay, endOfDay],
+        };
+      }
     }
 
     // Фильтр по цене
@@ -153,16 +159,33 @@ export const getTrips = async (req: Request, res: Response) => {
       };
     }
 
+    // Фильтр "Только с подтвержденным профилем"
+    if (verifiedOnly === "true") {
+      includeClause[0].where = {
+        ...includeClause[0].where,
+        isVerified: true,
+      };
+    }
+
+    // Фильтр "Мгновенное бронирование"
+    if (instantBookingOnly === "true") {
+      whereClause.instantBooking = true;
+    }
+
     console.log("Условия поиска:", JSON.stringify(whereClause, null, 2));
+
+    let order: any[] = [];
+    if (sortBy === "cheapest") {
+      order = [["price", "ASC"]];
+    } else {
+      // По умолчанию - самые ранние
+      order = [["departureAt", "ASC"]];
+    }
 
     const trips = await Trip.findAll({
       where: whereClause,
       include: includeClause,
-      order: [
-        ["createdAt", "DESC"],
-        ["departureDate", "ASC"],
-        ["departureTime", "ASC"],
-      ],
+      order,
     });
 
     console.log(`Найдено поездок: ${trips.length}`);
@@ -175,13 +198,16 @@ export const getTrips = async (req: Request, res: Response) => {
         filters: {
           from,
           to,
-          date,
+          departureAt,
           minPrice,
           maxPrice,
           seats,
           timeFrom,
           timeTo,
           driverGender,
+          verifiedOnly: verifiedOnly === "true",
+          instantBookingOnly: instantBookingOnly === "true",
+          sortBy,
         },
       },
     });
@@ -245,8 +271,7 @@ export const createTrip = async (req: Request, res: Response) => {
     const {
       from,
       to,
-      departureDate,
-      departureTime,
+      departureAt,
       price,
       availableSeats,
       description,
@@ -259,8 +284,7 @@ export const createTrip = async (req: Request, res: Response) => {
     const requiredFields = [
       "from",
       "to",
-      "departureDate",
-      "departureTime",
+      "departureAt",
       "price",
       "availableSeats",
     ];
@@ -287,10 +311,10 @@ export const createTrip = async (req: Request, res: Response) => {
       });
     }
 
-    const tripDateTime = new Date(`${departureDate}T${departureTime}:00`);
+    const departureDateTime = new Date(departureAt);
     const now = new Date();
 
-    if (tripDateTime <= now) {
+    if (departureDateTime <= now) {
       return res.status(400).json({
         success: false,
         message: "Дата и время поездки должны быть в будущем",
@@ -310,8 +334,7 @@ export const createTrip = async (req: Request, res: Response) => {
       driverId: driverId.toString(), // Конвертируем в string
       from,
       to,
-      departureDate,
-      departureTime,
+      departureAt: departureDateTime,
       price: parseFloat(price),
       availableSeats: parseInt(availableSeats),
       description: description || "",
@@ -375,6 +398,10 @@ export const updateTrip = async (req: Request, res: Response) => {
       });
     }
 
+    if (updateData.departureAt) {
+      updateData.departureAt = new Date(updateData.departureAt);
+    }
+
     await trip.update(updateData);
     await updateTripParticipantsActiveTrips(id);
 
@@ -433,8 +460,7 @@ export const deleteTrip = async (req: Request, res: Response) => {
       tripId: trip.id,
       from: trip.from,
       to: trip.to,
-      departureDate: trip.departureDate,
-      departureTime: trip.departureTime,
+      departureAt: trip.departureAt,
       price: trip.price,
       status: "cancelled" as const,
       completedAt: new Date(),
@@ -564,8 +590,7 @@ export const completeTrip = async (req: Request, res: Response) => {
       tripId: trip.id,
       from: trip.from,
       to: trip.to,
-      departureDate: trip.departureDate,
-      departureTime: trip.departureTime,
+      departureAt: trip.departureAt,
       price: trip.price,
       status: "completed" as const,
       completedAt: new Date(),

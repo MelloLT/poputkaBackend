@@ -181,10 +181,7 @@ export const getUserById = async (req: Request, res: Response) => {
             ],
           },
         ],
-        order: [
-          ["departureDate", "ASC"],
-          ["departureTime", "ASC"],
-        ],
+        order: [["departureAt", "ASC"]],
       });
 
       activeTrips = driverTrips.map((trip) => ({
@@ -192,8 +189,7 @@ export const getUserById = async (req: Request, res: Response) => {
         role: "driver" as const,
         from: trip.from,
         to: trip.to,
-        departureDate: trip.departureDate,
-        departureTime: trip.departureTime,
+        departureAt: trip.departureAt,
         price: trip.price,
         availableSeats: trip.availableSeats,
         status: trip.status,
@@ -266,8 +262,7 @@ export const getUserById = async (req: Request, res: Response) => {
             role: "passenger" as const,
             from: booking.trip.from,
             to: booking.trip.to,
-            departureDate: booking.trip.departureDate,
-            departureTime: booking.trip.departureTime,
+            departureAt: booking.trip.departureAt,
             price: booking.trip.price,
             availableSeats: booking.trip.availableSeats,
             status: booking.trip.status,

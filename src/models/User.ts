@@ -51,8 +51,7 @@ interface UserAttributes {
     role: "driver" | "passenger";
     from: Location;
     to: Location;
-    departureDate: string;
-    departureTime: string;
+    departureAt: Date;
     price: number;
     availableSeats: number;
     status: "active";
@@ -122,8 +121,7 @@ interface UserAttributes {
     role: "driver" | "passenger";
     from: Location;
     to: Location;
-    departureDate: string;
-    departureTime: string;
+    departureAt: Date;
     price: number;
     status: "completed" | "cancelled";
     completedAt: Date;
@@ -214,8 +212,7 @@ class User
     role: "driver" | "passenger";
     from: Location;
     to: Location;
-    departureDate: string;
-    departureTime: string;
+    departureAt: Date;
     price: number;
     availableSeats: number;
     status: "active";
@@ -282,8 +279,7 @@ class User
     role: "driver" | "passenger";
     from: Location;
     to: Location;
-    departureDate: string;
-    departureTime: string;
+    departureAt: Date;
     price: number;
     status: "completed" | "cancelled";
     completedAt: Date;

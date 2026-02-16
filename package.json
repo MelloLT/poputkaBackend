@@ -6,7 +6,10 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "seed": "ts-node src/seeders/seedData.ts",
-    "migrate": "node dist/migrations/add-birthDate-column.js"
+    "migrate:add-departureat": "ts-node src/migrations/add-departureAt-column.ts",
+    "migrate:convert-departureat": "ts-node src/migrations/convert-to-departureAt.ts",
+    "migrate:remove-old-columns": "ts-node src/migrations/remove-old-date-columns.ts",
+    "migrate:all": "npm run migrate:add-departureat && npm run migrate:convert-departureat && npm run migrate:remove-old-columns"
   },
   "dependencies": {
     "axios": "^1.13.2",
