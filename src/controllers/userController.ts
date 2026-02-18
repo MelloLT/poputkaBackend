@@ -348,8 +348,8 @@ export const getUserById = async (req: Request, res: Response) => {
           telegram: user.telegram,
           tripsCount: user.tripsCount,
           activeTrips: activeTrips,
+          myBookings: myBookings,
         },
-        myBookings: myBookings,
       },
     });
   } catch (error) {

@@ -331,7 +331,7 @@ export const createTrip = async (req: Request, res: Response) => {
     }
 
     const newTrip = await Trip.create({
-      driverId: driverId.toString(), // Конвертируем в string
+      driverId: driverId.toString(),
       from,
       to,
       departureAt: departureDateTime,
