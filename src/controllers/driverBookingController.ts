@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import Booking from "../models/Booking";
 import Trip from "../models/Trip";
 import User from "../models/User";
+import { updateTripParticipantsActiveTrips } from "../services/userTripsService";
 
 // Получить все бронирования для поездок водителя
 export const getDriverBookings = async (req: Request, res: Response) => {
@@ -31,7 +32,7 @@ export const getDriverBookings = async (req: Request, res: Response) => {
         {
           model: Trip,
           as: "trip",
-          attributes: ["id", "from", "to", "departureDate", "departureTime"],
+          attributes: ["id", "from", "to", "departureAt"],
           include: [
             {
               model: User,
@@ -106,15 +107,17 @@ export const confirmBooking = async (req: Request, res: Response) => {
       });
     }
 
-    // Обновляем бронирование
+    // Обновить бронирование
     await booking.update({ status: "confirmed" });
 
-    // Обновляем количество свободных мест
+    // Обновить количество свободных мест
     await trip.update({
       availableSeats: trip.availableSeats - booking.seats,
     });
 
-    // ✅ Добавляем уведомление пассажиру
+    await updateTripParticipantsActiveTrips(trip.id);
+
+    // Добавить уведомление пассажиру
     const passenger = await User.findByPk(booking.passengerId);
     if (passenger) {
       const newNotification = {
@@ -154,7 +157,7 @@ export const rejectBooking = async (req: Request, res: Response) => {
     const { bookingId } = req.params;
     const driverId = req.user!.id;
 
-    // Находим бронирование и проверяем что водитель владеет поездкой
+    // Нахождение бронирования и проверка что водитель владеет поездкой
     const booking = await Booking.findOne({
       where: { id: bookingId },
       include: [
@@ -181,10 +184,11 @@ export const rejectBooking = async (req: Request, res: Response) => {
       });
     }
 
-    // Обновляем бронирование
+    // Обновить бронирование
     await booking.update({ status: "rejected" });
+    await updateTripParticipantsActiveTrips(booking.tripId);
 
-    // Добавляем уведомление пассажиру
+    // Добавление уведомление пассажиру
     const passenger = await User.findByPk(booking.passengerId);
     if (passenger) {
       // Получаем данные поездки для уведомления
@@ -218,6 +222,71 @@ export const rejectBooking = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: "Ошибка при отклонении брони",
+    });
+  }
+};
+
+export const getDriverTripHistory = async (req: Request, res: Response) => {
+  try {
+    const driverId = req.user!.id;
+    const { status = "completed" } = req.query;
+
+    console.log(
+      "Получаем историю поездок для водителя:",
+      driverId,
+      "статус:",
+      status,
+    );
+
+    const trips = await Trip.findAll({
+      where: {
+        driverId,
+        status: status.toString(),
+      },
+      include: [
+        {
+          model: User,
+          as: "driver",
+          attributes: [
+            "id",
+            "firstName",
+            "lastName",
+            "avatar",
+            "rating",
+            "tripsCount",
+          ],
+        },
+        {
+          model: Booking,
+          as: "bookings",
+          include: [
+            {
+              model: User,
+              as: "passenger",
+              attributes: ["id", "firstName", "lastName", "avatar", "rating"],
+            },
+          ],
+        },
+      ],
+      order: [["departureAt", "DESC"]],
+    });
+
+    console.log("Найдено поездок:", trips.length);
+
+    res.json({
+      success: true,
+      data: trips,
+      meta: {
+        total: trips.length,
+        role: "driver",
+        status: status,
+      },
+    });
+  } catch (error: any) {
+    console.error("Ошибка получения истории поездок водителя:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Ошибка сервера при получении истории поездок",
     });
   }
 };

@@ -1,25 +1,23 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
-import User from "./User";
+import { generateTripId } from "../utils/idGenerator";
 
 export interface Location {
   cityKey: string;
   address: string;
 }
 
-// Добавь этот интерфейс в начало файла
 export interface Coordinates {
   lat: number;
   lon: number;
 }
 
 export interface TripAttributes {
-  id: number;
-  driverId: number;
+  id: string;
+  driverId: string;
   from: Location;
   to: Location;
-  departureDate: string;
-  departureTime: string;
+  departureAt: Date;
   price: number;
   availableSeats: number;
   description?: string;
@@ -36,27 +34,25 @@ export interface TripAttributes {
   };
 }
 
-export interface TripCreationAttributes
-  extends Optional<
-    TripAttributes,
-    | "id"
-    | "description"
-    | "status"
-    | "instantBooking"
-    | "maxTwoBackSeats"
-    | "tripInfo"
-  > {}
+export interface TripCreationAttributes extends Optional<
+  TripAttributes,
+  | "id"
+  | "description"
+  | "status"
+  | "instantBooking"
+  | "maxTwoBackSeats"
+  | "tripInfo"
+> {}
 
 class Trip
   extends Model<TripAttributes, TripCreationAttributes>
   implements TripAttributes
 {
-  public id!: number;
-  public driverId!: number;
+  public id!: string;
+  public driverId!: string;
   public from!: Location;
   public to!: Location;
-  public departureDate!: string;
-  public departureTime!: string;
+  public departureAt!: Date;
   public price!: number;
   public availableSeats!: number;
   public description?: string;
@@ -75,23 +71,21 @@ class Trip
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 
-  public driver?: User;
+  // Убрали явные объявления связей чтобы избежать циклических зависимостей
+  public driver?: any;
+  public bookings?: any[];
 }
 
 Trip.init(
   {
     id: {
-      type: DataTypes.INTEGER,
-      autoIncrement: true,
+      type: DataTypes.STRING,
       primaryKey: true,
+      defaultValue: generateTripId,
     },
     driverId: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.STRING,
       allowNull: false,
-      references: {
-        model: User,
-        key: "id",
-      },
     },
     from: {
       type: DataTypes.JSONB,
@@ -101,14 +95,11 @@ Trip.init(
       type: DataTypes.JSONB,
       allowNull: false,
     },
-    departureDate: {
-      type: DataTypes.STRING,
+    departureAt: {
+      type: DataTypes.DATE,
       allowNull: false,
     },
-    departureTime: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
+
     price: {
       type: DataTypes.FLOAT,
       allowNull: false,
@@ -149,10 +140,7 @@ Trip.init(
     tableName: "trips",
     sequelize,
     timestamps: true,
-  }
+  },
 );
-
-Trip.belongsTo(User, { foreignKey: "driverId", as: "driver" });
-User.hasMany(Trip, { foreignKey: "driverId" });
 
 export default Trip;

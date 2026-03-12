@@ -22,7 +22,7 @@ export const uploadAvatar = async (req: Request, res: Response) => {
       success: true,
       message: "Аватар успешно загружен",
       data: {
-        avatar: fileUrl, // ✅ ТОЛЬКО НОВЫЙ URL АВАТАРА
+        avatar: fileUrl,
       },
     });
   } catch (error) {
@@ -76,7 +76,7 @@ export const uploadCarPhotos = async (req: Request, res: Response) => {
       success: true,
       message: "Фотографии автомобиля успешно загружены",
       data: {
-        carPhotos: uploadedFiles, // ✅ ТОЛЬКО МАССИВ НОВЫХ ФОТО
+        carPhotos: uploadedFiles,
       },
     });
   } catch (error) {

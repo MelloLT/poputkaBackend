@@ -18,7 +18,12 @@ export const authMiddleware = async (
   next: NextFunction
 ) => {
   try {
-    const token = req.cookies.accessToken;
+    // Проверяем token из cookies или заголовка Authorization
+    let token = req.cookies?.accessToken;
+
+    if (!token && req.headers.authorization?.startsWith("Bearer ")) {
+      token = req.headers.authorization.split(" ")[1];
+    }
 
     if (!token) {
       return res.status(401).json({
@@ -28,11 +33,10 @@ export const authMiddleware = async (
     }
 
     const payload = jwt.verify(token, JWT_SECRET) as {
-      userId: number;
+      userId: string;
       userRole: string;
     };
 
-    // НАЙТИ ПОЛЬЗОВАТЕЛЯ В БАЗЕ И СОХРАНИТЬ ВСЕ ДАННЫЕ
     const user = await User.findByPk(payload.userId, {
       attributes: {
         exclude: ["password", "verificationCode", "verificationCodeExpires"],
@@ -44,6 +48,27 @@ export const authMiddleware = async (
         success: false,
         message: "Пользователь не найден",
       });
+    }
+
+    // Проверка на бан
+    if (user.isBanned) {
+      const now = new Date();
+      if (user.bannedUntil && user.bannedUntil > now) {
+        return res.status(403).json({
+          success: false,
+          message: `Ваш аккаунт заблокирован. Причина: ${
+            user.banReason || "нарушение правил"
+          }. Блокировка до: ${user.bannedUntil.toLocaleDateString()}`,
+        });
+      } else if (!user.bannedUntil) {
+        // Перманентный бан
+        return res.status(403).json({
+          success: false,
+          message: `Ваш аккаунт заблокирован навсегда. Причина: ${
+            user.banReason || "нарушение правил"
+          }`,
+        });
+      }
     }
 
     req.user = user;
@@ -75,4 +100,26 @@ export const requireRole = (role: string) => {
 
     next();
   };
+};
+
+export const requireAdmin = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      message: "Требуется авторизация",
+    });
+  }
+
+  if (req.user.role !== "admin") {
+    return res.status(403).json({
+      success: false,
+      message: "Требуются права администратора",
+    });
+  }
+
+  next();
 };

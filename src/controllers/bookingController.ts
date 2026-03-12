@@ -2,6 +2,52 @@ import { Request, Response } from "express";
 import Booking from "../models/Booking";
 import Trip from "../models/Trip";
 import User from "../models/User";
+import { updateTripParticipantsActiveTrips } from "../services/userTripsService";
+import { sendSuccess, sendError } from "../utils/responseHelper";
+import { ErrorCodes } from "../utils/errorCodes";
+
+// Вспомогательная функция для добавления уведомлений
+const addNotification = async (
+  userId: string,
+  type:
+    | "booking_request"
+    | "booking_confirmed"
+    | "booking_rejected"
+    | "info"
+    | "success"
+    | "error",
+  title: string,
+  message: string,
+  relatedBookingId?: string,
+) => {
+  try {
+    const user = await User.findByPk(userId);
+    if (!user) return;
+
+    const newNotification = {
+      id: `NT${Date.now()}${Math.random().toString(36).substr(2, 9)}`,
+      type,
+      title,
+      message,
+      isRead: false,
+      createdAt: new Date(),
+      relatedBookingId,
+    };
+
+    const updatedNotifications = [
+      newNotification,
+      ...(user.notifications || []),
+    ];
+
+    // Ограничиваем количество хранимых уведомлений (последние 100)
+    const limitedNotifications = updatedNotifications.slice(0, 100);
+
+    await user.update({ notifications: limitedNotifications });
+    console.log(`Уведомление добавлено пользователю ${userId}: ${title}`);
+  } catch (error) {
+    console.error("Ошибка добавления уведомления:", error);
+  }
+};
 
 export const createBooking = async (req: Request, res: Response) => {
   try {
@@ -9,26 +55,17 @@ export const createBooking = async (req: Request, res: Response) => {
     const { tripId, seats } = req.body;
 
     if (!tripId || !seats) {
-      return res.status(400).json({
-        success: false,
-        message: "tripId и seats обязательны",
-      });
+      return sendError(res, ErrorCodes.TRIP_ID_SEATS_REQUIRED, 400);
     }
 
     const trip = await Trip.findByPk(tripId);
     if (!trip) {
-      return res.status(404).json({
-        success: false,
-        message: "Поездка не найдена",
-      });
+      return sendError(res, ErrorCodes.TRIP_NOT_FOUND, 404);
     }
 
     // ПРОВЕРКА: нельзя бронировать если 0 мест
     if (trip.availableSeats === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "В этой поездке нет свободных мест",
-      });
+      return sendError(res, ErrorCodes.NO_AVAILABLE_SEATS, 400);
     }
 
     if (trip.availableSeats < seats) {
@@ -52,52 +89,15 @@ export const createBooking = async (req: Request, res: Response) => {
     }
 
     const booking = await Booking.create({
-      passengerId,
+      passengerId: req.user!.id,
       tripId,
       seats: parseInt(seats),
       status: bookingStatus,
     });
 
-    // Добавляем уведомление пассажиру
-    const passenger = await User.findByPk(passengerId);
-    if (passenger && trip.instantBooking) {
-      const newNotification = {
-        id: Date.now().toString(),
-        type: "success" as const,
-        title: "Бронь создана",
-        message: `Вы забронировали поездку ${trip.from.cityKey} → ${trip.to.cityKey}`,
-        isRead: false,
-        createdAt: new Date(),
-        relatedBookingId: booking.id,
-      };
+    await updateTripParticipantsActiveTrips(tripId);
 
-      const updatedNotifications = [
-        ...(passenger.notifications || []),
-        newNotification,
-      ];
-      await passenger.update({ notifications: updatedNotifications });
-    }
-
-    // Добавляем уведомление водителю о новой брони
-    const driver = await User.findByPk(trip.driverId);
-    if (driver && !trip.instantBooking) {
-      const newNotification = {
-        id: Date.now().toString(),
-        type: "info" as const,
-        title: "Новая бронь",
-        message: `Пассажир хочет забронировать ${seats} мест в вашей поездке`,
-        isRead: false,
-        createdAt: new Date(),
-        relatedBookingId: booking.id,
-      };
-
-      const updatedNotifications = [
-        ...(driver.notifications || []),
-        newNotification,
-      ];
-      await driver.update({ notifications: updatedNotifications });
-    }
-
+    // Получаем обновленные данные для уведомлений
     const bookingWithDetails = await Booking.findByPk(booking.id, {
       include: [
         {
@@ -119,6 +119,48 @@ export const createBooking = async (req: Request, res: Response) => {
       ],
     });
 
+    // Добавляем уведомление пассажиру
+    if (trip.instantBooking) {
+      await addNotification(
+        passengerId,
+        "booking_confirmed",
+        "Бронь создана",
+        `Вы забронировали ${seats} место(а) в поездке ${trip.from.cityKey} → ${trip.to.cityKey}. Поездка подтверждена автоматически.`,
+        booking.id,
+      );
+    } else {
+      await addNotification(
+        passengerId,
+        "booking_request",
+        "Запрос отправлен",
+        `Ваш запрос на бронирование ${seats} места(а) в поездке ${trip.from.cityKey} → ${trip.to.cityKey} отправлен водителю. Ожидайте подтверждения.`,
+        booking.id,
+      );
+    }
+
+    // Добавляем уведомление водителю
+    if (!trip.instantBooking) {
+      await addNotification(
+        trip.driverId,
+        "booking_request",
+        "Новый запрос на бронирование",
+        `${req.user!.firstName} ${
+          req.user!.lastName
+        } хочет забронировать ${seats} место(а) в вашей поездке.`,
+        booking.id,
+      );
+    } else {
+      await addNotification(
+        trip.driverId,
+        "booking_confirmed",
+        "Автоматическое бронирование",
+        `${req.user!.firstName} ${
+          req.user!.lastName
+        } забронировал(а) ${seats} место(а) в вашей поездке через мгновенное бронирование.`,
+        booking.id,
+      );
+    }
+
     res.status(201).json({
       success: true,
       message: trip.instantBooking
@@ -128,10 +170,7 @@ export const createBooking = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("Ошибка при создании брони:", error.message);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при создании брони",
-    });
+    return sendError(res, ErrorCodes.BOOKING_CREATE_ERROR, 500);
   }
 };
 
@@ -170,10 +209,160 @@ export const getMyBookings = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("Ошибка при получении броней:", error.message);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при получении броней",
+    return sendError(res, ErrorCodes.BOOKING_FETCH_ERROR, 500);
+  }
+};
+
+export const getBookingById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user!.id;
+
+    const booking = await Booking.findByPk(id, {
+      include: [
+        {
+          model: Trip,
+          as: "trip",
+          include: [
+            {
+              model: User,
+              as: "driver",
+              attributes: [
+                "id",
+                "firstName",
+                "lastName",
+                "avatar",
+                "rating",
+                "car",
+                "telegram",
+                "phone",
+                "phoneVerified",
+              ],
+            },
+          ],
+        },
+        {
+          model: User,
+          as: "passenger",
+          attributes: [
+            "id",
+            "firstName",
+            "lastName",
+            "avatar",
+            "rating",
+            "telegram",
+            "phone",
+            "phoneVerified",
+          ],
+        },
+      ],
     });
+
+    if (!booking) {
+      return sendError(res, ErrorCodes.BOOKING_NOT_FOUND, 404);
+    }
+
+    // Проверяем, что пользователь имеет доступ к этому бронированию
+    const isDriver =
+      req.user!.role === "driver" && booking.trip?.driverId === userId;
+    const isPassenger = booking.passengerId === userId;
+
+    if (!isDriver && !isPassenger) {
+      return sendError(res, ErrorCodes.BOOKING_ACCESS_DENIED, 403);
+    }
+
+    const response = {
+      success: true,
+      data: {
+        id: booking.id,
+        passengerId: booking.passengerId,
+        tripId: booking.tripId,
+        seats: booking.seats,
+        status: booking.status,
+        createdAt: booking.createdAt,
+        updatedAt: booking.updatedAt,
+        trip: booking.trip
+          ? {
+              id: booking.trip.id,
+              driverId: booking.trip.driverId,
+              from: booking.trip.from,
+              to: booking.trip.to,
+              departureAt: booking.trip.departureAt,
+              price: booking.trip.price,
+              availableSeats: booking.trip.availableSeats,
+              description: booking.trip.description,
+              instantBooking: booking.trip.instantBooking,
+              maxTwoBackSeats: booking.trip.maxTwoBackSeats,
+              status: booking.trip.status,
+              tripInfo: booking.trip.tripInfo,
+              createdAt: booking.trip.createdAt,
+              updatedAt: booking.trip.updatedAt,
+              driver: booking.trip.driver
+                ? {
+                    id: booking.trip.driver.id,
+                    firstName: booking.trip.driver.firstName,
+                    lastName: booking.trip.driver.lastName,
+                    avatar: booking.trip.driver.avatar,
+                    rating: booking.trip.driver.rating,
+                    car: booking.trip.driver.car,
+                    telegram: booking.trip.driver.telegram,
+                    phone: booking.trip.driver.phone,
+                    phoneVerified: booking.trip.driver.phoneVerified,
+                  }
+                : null,
+            }
+          : null,
+        passenger: booking.passenger
+          ? {
+              id: booking.passenger.id,
+              firstName: booking.passenger.firstName,
+              lastName: booking.passenger.lastName,
+              avatar: booking.passenger.avatar,
+              rating: booking.passenger.rating,
+              telegram: booking.passenger.telegram,
+              phone: booking.passenger.phone,
+              phoneVerified: booking.passenger.phoneVerified,
+            }
+          : null,
+
+        currentUserRole: isDriver ? "driver" : "passenger",
+        counterpart: isDriver
+          ? booking.passenger
+            ? {
+                id: booking.passenger.id,
+                firstName: booking.passenger.firstName,
+                lastName: booking.passenger.lastName,
+                avatar: booking.passenger.avatar,
+                rating: booking.passenger.rating,
+                telegram: booking.passenger.telegram,
+                phone: booking.passenger.phone,
+                phoneVerified: booking.passenger.phoneVerified,
+              }
+            : null
+          : booking.trip?.driver
+            ? {
+                id: booking.trip.driver.id,
+                firstName: booking.trip.driver.firstName,
+                lastName: booking.trip.driver.lastName,
+                avatar: booking.trip.driver.avatar,
+                rating: booking.trip.driver.rating,
+                car: booking.trip.driver.car,
+                telegram: booking.trip.driver.telegram,
+                phone: booking.trip.driver.phone,
+                phoneVerified: booking.trip.driver.phoneVerified,
+              }
+            : null,
+      },
+      source: "database",
+    };
+
+    res.json({
+      success: true,
+      data: booking,
+    });
+  } catch (error: any) {
+    console.error("Ошибка при получении бронирования:", error.message);
+    return sendError(res, ErrorCodes.BOOKING_FETCH_ERROR, 500);
   }
 };
 
@@ -201,16 +390,104 @@ export const cancelBooking = async (req: Request, res: Response) => {
     }
 
     await booking.update({ status: "cancelled" });
+    await updateTripParticipantsActiveTrips(booking.tripId);
+
+    // Добавляем уведомление водителю об отмене
+    if (trip) {
+      await addNotification(
+        trip.driverId,
+        "booking_rejected",
+        "Бронь отменена",
+        `${req.user!.firstName} ${
+          req.user!.lastName
+        } отменил(а) бронирование на ${
+          booking.seats
+        } место(а) в вашей поездке.`,
+        booking.id,
+      );
+    }
+
+    // Добавляем уведомление пассажиру
+    await addNotification(
+      passengerId,
+      "info",
+      "Бронь отменена",
+      `Вы отменили бронирование на ${booking.seats} место(а) в поездке ${trip?.from.cityKey} → ${trip?.to.cityKey}.`,
+      booking.id,
+    );
+
+    return sendSuccess(res, null, ErrorCodes.BOOKING_CANCELLED);
+  } catch (error: any) {
+    console.error("Ошибка при отмене брони:", error.message);
+    return sendError(res, ErrorCodes.BOOKING_CANCEL_ERROR, 500);
+  }
+};
+
+export const getPassengerActiveTrips = async (req: Request, res: Response) => {
+  try {
+    const passengerId = req.user!.id;
+
+    const bookings = await Booking.findAll({
+      where: {
+        passengerId,
+        status: "confirmed",
+      },
+      include: [
+        {
+          model: Trip,
+          as: "trip",
+          where: {
+            status: "active", // Только активные поездки
+          },
+          include: [
+            {
+              model: User,
+              as: "driver",
+              attributes: [
+                "id",
+                "firstName",
+                "lastName",
+                "avatar",
+                "rating",
+                "car",
+              ],
+            },
+          ],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+
+    const trips = bookings
+      .map((booking) => {
+        if (!booking.trip) return null;
+
+        return {
+          ...booking.trip.toJSON(),
+          bookingInfo: {
+            id: booking.id,
+            seats: booking.seats,
+            status: booking.status,
+            bookedAt: booking.createdAt,
+          },
+        };
+      })
+      .filter((trip) => trip !== null);
 
     res.json({
       success: true,
-      message: "Бронь отменена успешно",
+      data: trips,
+      meta: {
+        total: trips.length,
+        role: "passenger",
+        status: "active",
+      },
     });
   } catch (error: any) {
-    console.error("Ошибка при отмене брони:", error.message);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при отмене брони",
-    });
+    console.error(
+      "Ошибка получения активных поездок пассажира:",
+      error.message,
+    );
+    return sendError(res, ErrorCodes.ACTIVE_TRIPS_FETCH_ERROR, 500);
   }
 };

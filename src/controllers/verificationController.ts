@@ -18,13 +18,6 @@ export const sendVerificationCode = async (req: Request, res: Response) => {
       });
     }
 
-    if (user.isVerified) {
-      return res.status(400).json({
-        success: false,
-        message: "Пользователь уже верифицирован",
-      });
-    }
-
     const verificationCode = generateVerificationCode();
     const expirationTime = new Date(Date.now() + 15 * 60 * 1000);
 
@@ -67,13 +60,6 @@ export const verifyCode = async (req: Request, res: Response) => {
       });
     }
 
-    if (user.isVerified) {
-      return res.status(400).json({
-        success: false,
-        message: "Пользователь уже верифицирован",
-      });
-    }
-
     if (!user.verificationCode || !user.verificationCodeExpires) {
       return res.status(400).json({
         success: false,
@@ -96,7 +82,7 @@ export const verifyCode = async (req: Request, res: Response) => {
     }
 
     await user.update({
-      isVerified: true,
+      emailVerified: true,
       verificationCode: undefined,
       verificationCodeExpires: undefined,
     });
@@ -110,6 +96,8 @@ export const verifyCode = async (req: Request, res: Response) => {
           username: user.username,
           email: user.email,
           isVerified: user.isVerified,
+          emailVerified: user.emailVerified,
+          phoneVerified: user.phoneVerified,
         },
       },
     });
@@ -118,6 +106,42 @@ export const verifyCode = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: "Ошибка при верификации",
+    });
+  }
+};
+
+export const verifyPhone = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Пользователь не найден",
+      });
+    }
+
+    await user.update({
+      phoneVerified: true,
+    });
+
+    res.json({
+      success: true,
+      message: "Телефон успешно подтвержден",
+      data: {
+        user: {
+          id: user.id,
+          phone: user.phone,
+          phoneVerified: user.phoneVerified,
+        },
+      },
+    });
+  } catch (error: any) {
+    console.error("Ошибка верификации телефона:", error);
+    res.status(500).json({
+      success: false,
+      message: "Ошибка при верификации телефона",
     });
   }
 };
