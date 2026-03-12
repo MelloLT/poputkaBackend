@@ -304,14 +304,14 @@ export const getAllReports = async (req: Request, res: Response) => {
     // Сортируем по дате
     allReports.sort(
       (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
 
     // Пагинация
     const offset = (parseInt(page.toString()) - 1) * parseInt(limit.toString());
     const paginatedReports = allReports.slice(
       offset,
-      offset + parseInt(limit.toString())
+      offset + parseInt(limit.toString()),
     );
 
     res.json({
@@ -341,7 +341,7 @@ export const updateReportStatus = async (req: Request, res: Response) => {
     const { status, adminNote } = req.body;
 
     console.log(
-      `Обновление статуса жалобы: userId=${userId}, reportId=${reportId}`
+      `Обновление статуса жалобы: userId=${userId}, reportId=${reportId}`,
     );
 
     // Ищем пользователя, на которого поступила жалоба (target user)
@@ -355,7 +355,7 @@ export const updateReportStatus = async (req: Request, res: Response) => {
 
     console.log(
       `Найден пользователь: ${targetUser.username}, reports:`,
-      targetUser.reports?.length || 0
+      targetUser.reports?.length || 0,
     );
 
     const reports = targetUser.reports || [];
@@ -483,7 +483,7 @@ export const getAdminStats = async (req: Request, res: Response) => {
     let totalPendingReports = 0;
     usersWithReports.forEach((user) => {
       totalPendingReports += (user.reports || []).filter(
-        (r: any) => r.status === "pending"
+        (r: any) => r.status === "pending",
       ).length;
     });
 

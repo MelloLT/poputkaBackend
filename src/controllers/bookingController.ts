@@ -3,6 +3,8 @@ import Booking from "../models/Booking";
 import Trip from "../models/Trip";
 import User from "../models/User";
 import { updateTripParticipantsActiveTrips } from "../services/userTripsService";
+import { sendSuccess, sendError } from "../utils/responseHelper";
+import { ErrorCodes } from "../utils/errorCodes";
 
 // Вспомогательная функция для добавления уведомлений
 const addNotification = async (
@@ -53,26 +55,17 @@ export const createBooking = async (req: Request, res: Response) => {
     const { tripId, seats } = req.body;
 
     if (!tripId || !seats) {
-      return res.status(400).json({
-        success: false,
-        message: "tripId и seats обязательны",
-      });
+      return sendError(res, ErrorCodes.TRIP_ID_SEATS_REQUIRED, 400);
     }
 
     const trip = await Trip.findByPk(tripId);
     if (!trip) {
-      return res.status(404).json({
-        success: false,
-        message: "Поездка не найдена",
-      });
+      return sendError(res, ErrorCodes.TRIP_NOT_FOUND, 404);
     }
 
     // ПРОВЕРКА: нельзя бронировать если 0 мест
     if (trip.availableSeats === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "В этой поездке нет свободных мест",
-      });
+      return sendError(res, ErrorCodes.NO_AVAILABLE_SEATS, 400);
     }
 
     if (trip.availableSeats < seats) {
@@ -177,10 +170,7 @@ export const createBooking = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("Ошибка при создании брони:", error.message);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при создании брони",
-    });
+    return sendError(res, ErrorCodes.BOOKING_CREATE_ERROR, 500);
   }
 };
 
@@ -219,10 +209,7 @@ export const getMyBookings = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("Ошибка при получении броней:", error.message);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при получении броней",
-    });
+    return sendError(res, ErrorCodes.BOOKING_FETCH_ERROR, 500);
   }
 };
 
@@ -272,10 +259,7 @@ export const getBookingById = async (req: Request, res: Response) => {
     });
 
     if (!booking) {
-      return res.status(404).json({
-        success: false,
-        message: "Бронирование не найдено",
-      });
+      return sendError(res, ErrorCodes.BOOKING_NOT_FOUND, 404);
     }
 
     // Проверяем, что пользователь имеет доступ к этому бронированию
@@ -284,10 +268,7 @@ export const getBookingById = async (req: Request, res: Response) => {
     const isPassenger = booking.passengerId === userId;
 
     if (!isDriver && !isPassenger) {
-      return res.status(403).json({
-        success: false,
-        message: "У вас нет доступа к этому бронированию",
-      });
+      return sendError(res, ErrorCodes.BOOKING_ACCESS_DENIED, 403);
     }
 
     const response = {
@@ -381,10 +362,7 @@ export const getBookingById = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("Ошибка при получении бронирования:", error.message);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при получении бронирования",
-    });
+    return sendError(res, ErrorCodes.BOOKING_FETCH_ERROR, 500);
   }
 };
 
@@ -438,16 +416,10 @@ export const cancelBooking = async (req: Request, res: Response) => {
       booking.id,
     );
 
-    res.json({
-      success: true,
-      message: "Бронь отменена успешно",
-    });
+    return sendSuccess(res, null, ErrorCodes.BOOKING_CANCELLED);
   } catch (error: any) {
     console.error("Ошибка при отмене брони:", error.message);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при отмене брони",
-    });
+    return sendError(res, ErrorCodes.BOOKING_CANCEL_ERROR, 500);
   }
 };
 
@@ -516,9 +488,6 @@ export const getPassengerActiveTrips = async (req: Request, res: Response) => {
       "Ошибка получения активных поездок пассажира:",
       error.message,
     );
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при получении активных поездок",
-    });
+    return sendError(res, ErrorCodes.ACTIVE_TRIPS_FETCH_ERROR, 500);
   }
 };

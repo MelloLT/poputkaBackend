@@ -3,6 +3,8 @@ import User from "../models/User";
 import Message from "../models/Message";
 import { Request, Response } from "express";
 import { Op } from "sequelize";
+import { sendSuccess, sendError } from "../utils/responseHelper";
+import { ErrorCodes } from "../utils/errorCodes";
 
 export const getChats = async (req: any, res: any) => {
   try {
@@ -78,10 +80,7 @@ export const getChatByID = async (req: Request, res: Response) => {
     });
 
     if (!chat) {
-      return res.status(404).json({
-        success: false,
-        message: "Чат не найден",
-      });
+      return sendError(res, ErrorCodes.CHAT_NOT_FOUND, 404);
     }
 
     res.json({
@@ -90,10 +89,7 @@ export const getChatByID = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("Ошибка при получении поездки:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера",
-    });
+    return sendError(res, ErrorCodes.CHAT_SERVER_ERROR, 500);
   }
 };
 export const sendMessage = async (req: Request, res: Response) => {
@@ -102,26 +98,17 @@ export const sendMessage = async (req: Request, res: Response) => {
     const userId = req.user!.id;
 
     if (!chatId || !text?.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: "chatId и text обязательны",
-      });
+      return sendError(res, ErrorCodes.CHATID_TEXT_REQUIRED, 400);
     }
 
     // проверяем, что пользователь участвует в этом чате
     const chat = await Chat.findByPk(chatId);
     if (!chat) {
-      return res.status(404).json({
-        success: false,
-        message: "Чат не найден",
-      });
+      return sendError(res, ErrorCodes.CHAT_NOT_FOUND, 404);
     }
 
     if (userId !== chat.user1Id && userId !== chat.user2Id) {
-      return res.status(403).json({
-        success: false,
-        message: "Нет доступа к чату",
-      });
+      return sendError(res, ErrorCodes.CHAT_ACCESS_DENIED, 403);
     }
 
     // создаём сообщение
@@ -137,10 +124,7 @@ export const sendMessage = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("Ошибка отправки сообщения:", error.message);
-    return res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при отправке сообщения",
-    });
+    return sendError(res, ErrorCodes.CHAT_SEND_ERROR, 500);
   }
 };
 
@@ -150,10 +134,7 @@ export const createChat = async (req: Request, res: Response) => {
     const { user2Id } = req.body;
 
     if (!user2Id) {
-      return res.status(400).json({
-        success: false,
-        message: "Не указан второй пользователь",
-      });
+      return sendError(res, ErrorCodes.SECOND_USER_MISSING, 400);
     }
 
     const existingChat = await Chat.findOne({
@@ -166,11 +147,7 @@ export const createChat = async (req: Request, res: Response) => {
     });
 
     if (existingChat) {
-      return res.json({
-        success: true,
-        data: existingChat,
-        message: "Чат уже существует",
-      });
+      return sendSuccess(res, existingChat, ErrorCodes.CHAT_ALREADY_EXISTS);
     }
 
     const chat = await Chat.create({ user1Id, user2Id });

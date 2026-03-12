@@ -5,7 +5,8 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import Booking from "../models/Booking";
 import Trip from "../models/Trip";
-import { updateUserActiveTrips } from "../services/userTripsService";
+import { sendSuccess, sendError } from "../utils/responseHelper";
+import { ErrorCodes } from "../utils/errorCodes";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
@@ -206,10 +207,7 @@ export const register = async (req: Request, res: Response) => {
       });
     }
 
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при регистрации",
-    });
+    return sendError(res, ErrorCodes.REGISTRATION_SERVER_ERROR, 500);
   }
 };
 
@@ -218,10 +216,7 @@ export const login = async (req: Request, res: Response) => {
     const { login: loginInput, password } = req.body;
 
     if (!loginInput || !password) {
-      return res.status(400).json({
-        success: false,
-        message: "Логин/email и пароль обязательны",
-      });
+      return sendError(res, ErrorCodes.LOGIN_PASSWORD_REQUIRED, 400);
     }
 
     const user = await User.findOne({
@@ -231,18 +226,12 @@ export const login = async (req: Request, res: Response) => {
     });
 
     if (!user) {
-      return res.status(400).json({
-        success: false,
-        message: "Неверный логин/email или пароль",
-      });
+      return sendError(res, ErrorCodes.INVALID_LOGIN_PASSWORD, 400);
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(400).json({
-        success: false,
-        message: "Неверный логин/email или пароль",
-      });
+      return sendError(res, ErrorCodes.INVALID_LOGIN_PASSWORD, 400);
     }
 
     const token = generateToken(user.id, user.role);
@@ -255,19 +244,11 @@ export const login = async (req: Request, res: Response) => {
       path: "/",
     });
 
-    res.json({
-      success: true,
-      message: "Вход выполнен успешно",
-      data: {
-        token: token,
-      },
-    });
+    return sendSuccess(res, { token: token }, ErrorCodes.LOGIN_SUCCESS);
   } catch (error: any) {
     console.error("Ошибка при входе:", error.message);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при входе",
-    });
+
+    return sendError(res, ErrorCodes.LOGIN_SERVER_ERROR, 500);
   }
 };
 
@@ -514,8 +495,5 @@ export const getMe = async (req: Request, res: Response) => {
 
 export const logout = (req: Request, res: Response) => {
   res.clearCookie("accessToken");
-  res.json({
-    success: true,
-    message: "Выход выполнен успешно",
-  });
+  return sendSuccess(res, {}, ErrorCodes.LOGOUT_SUCCESS);
 };
