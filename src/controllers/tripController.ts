@@ -85,7 +85,7 @@ export const getTrips = async (req: Request, res: Response) => {
       verifiedOnly,
     });
 
-    const whereClause: any = { status: "active" };
+    const whereClause: any = { status: { [Op.in]: ["created", "paid"] } };
     const includeClause: any = [
       {
         model: User,
