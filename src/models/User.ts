@@ -39,6 +39,13 @@ interface UserAttributes {
     createdAt: Date;
     tripId: string;
   }>;
+  ratings?: {
+    driving: number;
+    cleanliness: number;
+    politeness: number;
+    average: number;
+    count: number;
+  };
   car?: {
     model: string;
     color: string;

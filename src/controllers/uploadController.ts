@@ -3,6 +3,8 @@ import fs from "fs";
 import path from "path";
 import User from "../models/User";
 
+const uploadsDir = path.join(process.cwd(), "uploads");
+
 export const uploadAvatar = async (req: Request, res: Response) => {
   try {
     if (!req.file) {
@@ -15,15 +17,12 @@ export const uploadAvatar = async (req: Request, res: Response) => {
     const userId = req.user!.id;
     const fileUrl = `/uploads/avatars/${req.file.filename}`;
 
-    // Обновляем аватар
     await User.update({ avatar: fileUrl }, { where: { id: userId } });
 
     res.json({
       success: true,
       message: "Аватар успешно загружен",
-      data: {
-        avatar: fileUrl,
-      },
+      data: { avatar: fileUrl },
     });
   } catch (error) {
     console.error("Ошибка загрузки аватара:", error);
@@ -47,19 +46,16 @@ export const uploadCarPhotos = async (req: Request, res: Response) => {
     const files = req.files as Express.Multer.File[];
     const uploadedFiles = files.map((file) => `/uploads/cars/${file.filename}`);
 
-    // Обновляем фото автомобиля
     const user = await User.findByPk(userId);
     if (user) {
       let updatedCar;
 
       if (user.car) {
-        // Добавляем новые фото к существующим
         updatedCar = {
           ...user.car,
           photos: [...(user.car.photos || []), ...uploadedFiles],
         };
       } else {
-        // Создаем новый объект car если его нет
         updatedCar = {
           model: "Не указано",
           color: "Не указано",
@@ -75,9 +71,7 @@ export const uploadCarPhotos = async (req: Request, res: Response) => {
     res.json({
       success: true,
       message: "Фотографии автомобиля успешно загружены",
-      data: {
-        carPhotos: uploadedFiles,
-      },
+      data: { carPhotos: uploadedFiles },
     });
   } catch (error) {
     console.error("Ошибка загрузки фото автомобиля:", error);
@@ -88,7 +82,6 @@ export const uploadCarPhotos = async (req: Request, res: Response) => {
   }
 };
 
-//  УДАЛЕНИЕ ПО URL (КОМПАКТНАЯ ВЕРСИЯ)
 export const deleteFileByUrl = async (req: Request, res: Response) => {
   try {
     const { fileUrl } = req.body;
@@ -101,11 +94,9 @@ export const deleteFileByUrl = async (req: Request, res: Response) => {
       });
     }
 
-    // Извлекаем filename из URL
     const filename = fileUrl.split("/").pop();
     let folder = "";
 
-    // Определяем папку из URL
     if (fileUrl.includes("/avatars/")) {
       folder = "avatars";
     } else if (fileUrl.includes("/cars/")) {
@@ -117,12 +108,11 @@ export const deleteFileByUrl = async (req: Request, res: Response) => {
       });
     }
 
-    const filePath = path.join(__dirname, "../uploads", folder, filename!);
+    const filePath = path.join(uploadsDir, folder, filename!);
 
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
 
-      // Обновляем профиль
       const user = await User.findByPk(userId);
 
       if (user) {
@@ -130,7 +120,7 @@ export const deleteFileByUrl = async (req: Request, res: Response) => {
           await User.update({ avatar: "" }, { where: { id: userId } });
         } else if (folder === "cars" && user.car?.photos) {
           const updatedPhotos = user.car.photos.filter(
-            (photo: string) => photo !== fileUrl
+            (photo: string) => photo !== fileUrl,
           );
           const updatedCar = { ...user.car, photos: updatedPhotos };
           await User.update({ car: updatedCar }, { where: { id: userId } });
@@ -140,9 +130,7 @@ export const deleteFileByUrl = async (req: Request, res: Response) => {
       res.json({
         success: true,
         message: "Файл успешно удален",
-        data: {
-          deletedUrl: fileUrl, // ТОЛЬКО URL УДАЛЕННОГО ФАЙЛА
-        },
+        data: { deletedUrl: fileUrl },
       });
     } else {
       res.status(404).json({
@@ -150,7 +138,7 @@ export const deleteFileByUrl = async (req: Request, res: Response) => {
         message: "Файл не найден",
       });
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error("Ошибка удаления файла:", error);
     res.status(500).json({
       success: false,
