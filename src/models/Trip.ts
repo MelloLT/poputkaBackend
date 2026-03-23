@@ -23,7 +23,8 @@ export interface TripAttributes {
   description?: string;
   instantBooking: boolean;
   maxTwoBackSeats: boolean;
-  status: "active" | "completed" | "cancelled";
+  status: "created" | "paid" | "completed" | "cancelled";
+  isPaid?: boolean;
   tripInfo?: {
     distance: number;
     duration: number;
@@ -58,7 +59,8 @@ class Trip
   public description?: string;
   public instantBooking!: boolean;
   public maxTwoBackSeats!: boolean;
-  public status!: "active" | "completed" | "cancelled";
+  public status!: "created" | "paid" | "completed" | "cancelled";
+  public isPaid?: boolean;
   public tripInfo?: {
     distance: number;
     duration: number;
@@ -128,8 +130,8 @@ Trip.init(
       defaultValue: false,
     },
     status: {
-      type: DataTypes.ENUM("active", "completed", "cancelled"),
-      defaultValue: "active",
+      type: DataTypes.ENUM("created", "paid", "completed", "cancelled"),
+      defaultValue: "created",
     },
     tripInfo: {
       type: DataTypes.JSONB,

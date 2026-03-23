@@ -1,13 +1,25 @@
 import multer from "multer";
 import path from "path";
-import { Request } from "express";
+import fs from "fs";
+
+// Универсальный путь к uploads
+const uploadsDir = path.join(process.cwd(), "uploads");
+
+// Создаем папки если их нет
+const ensureDirExists = (dir: string) => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+};
 
 // Настройка хранилища для аватаров
 const avatarStorage = multer.diskStorage({
-  destination: (req: Request, file, cb) => {
-    cb(null, "src/uploads/avatars/");
+  destination: (req, file, cb) => {
+    const avatarDir = path.join(uploadsDir, "avatars");
+    ensureDirExists(avatarDir);
+    cb(null, avatarDir);
   },
-  filename: (req: Request, file, cb) => {
+  filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(null, "avatar-" + uniqueSuffix + path.extname(file.originalname));
   },
@@ -15,17 +27,19 @@ const avatarStorage = multer.diskStorage({
 
 // Настройка хранилища для фото автомобилей
 const carStorage = multer.diskStorage({
-  destination: (req: Request, file, cb) => {
-    cb(null, "src/uploads/cars/");
+  destination: (req, file, cb) => {
+    const carsDir = path.join(uploadsDir, "cars");
+    ensureDirExists(carsDir);
+    cb(null, carsDir);
   },
-  filename: (req: Request, file, cb) => {
+  filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(null, "car-" + uniqueSuffix + path.extname(file.originalname));
   },
 });
 
 // Фильтр файлов
-const fileFilter = (req: Request, file: Express.Multer.File, cb: any) => {
+const fileFilter = (req: any, file: Express.Multer.File, cb: any) => {
   if (file.mimetype.startsWith("image/")) {
     cb(null, true);
   } else {
@@ -33,7 +47,7 @@ const fileFilter = (req: Request, file: Express.Multer.File, cb: any) => {
   }
 };
 
-// Создание экземпляры multer
+// Создание экземпляров multer
 export const uploadAvatar = multer({
   storage: avatarStorage,
   fileFilter,
@@ -47,6 +61,6 @@ export const uploadCarPhotos = multer({
   fileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB
-    files: 5, // максимум 5 файлов
+    files: 5,
   },
 });

@@ -340,7 +340,7 @@ export const createTrip = async (req: Request, res: Response) => {
       description: description || "",
       instantBooking: Boolean(instantBooking),
       maxTwoBackSeats: Boolean(maxTwoBackSeats),
-      status: "active",
+      status: "created",
       tripInfo: tripInfo || undefined,
     });
 
