@@ -63,7 +63,7 @@ export const checkTripActive = async (
       });
     }
 
-    if (trip.status !== "active") {
+    if (trip.status !== "created" && trip.status !== "paid") {
       return res.status(400).json({
         success: false,
         message: "Поездка неактивна или уже завершена",
