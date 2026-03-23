@@ -87,7 +87,7 @@ app.use("/verification", verificationRoutes);
 app.use("/trips", tripRoutes);
 app.use("/users", userRoutes);
 app.use("/bookings", bookingRoutes);
-app.use("/uploads", express.static("src/uploads"));
+app.use("/uploads", express.static("/uploads"));
 app.use("/upload", uploadRoutes);
 app.use("/driver/bookings", driverBookingsRoutes);
 app.use("/map", mapRoutes);

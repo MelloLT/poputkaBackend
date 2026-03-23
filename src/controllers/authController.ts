@@ -262,7 +262,9 @@ export const getMe = async (req: Request, res: Response) => {
       const driverTrips = await Trip.findAll({
         where: {
           driverId: user.id,
-          status: "active",
+          status: {
+            [Op.in]: ["created", "paid"],
+          },
         },
         include: [
           {
@@ -337,7 +339,9 @@ export const getMe = async (req: Request, res: Response) => {
           {
             model: Trip,
             as: "trip",
-            where: { status: "active" },
+            where: {
+              status: { [Op.in]: ["created", "paid"] },
+            },
             include: [
               {
                 model: User,
