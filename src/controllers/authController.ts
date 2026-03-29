@@ -238,13 +238,27 @@ export const login = async (req: Request, res: Response) => {
 
     res.cookie("accessToken", token, {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
       path: "/",
     });
 
-    return sendSuccess(res, { token: token }, ErrorCodes.LOGIN_SUCCESS);
+    sendSuccess(
+      res,
+      {
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          avatar: user.avatar,
+        },
+      },
+      ErrorCodes.LOGIN_SUCCESS,
+    );
   } catch (error: any) {
     console.error("Ошибка при входе:", error.message);
 
