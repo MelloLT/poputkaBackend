@@ -24,7 +24,6 @@ export const forgotPassword = async (req: Request, res: Response) => {
     const user = await User.findOne({ where: { email } });
 
     if (!user) {
-      // Не показываем, что пользователь не найден (безопасность)
       return res.json({
         success: true,
         message:
@@ -85,11 +84,11 @@ export const verifyResetCode = async (req: Request, res: Response) => {
       });
     }
 
-    // Генерируем временный токен для сброса
+    // временный токен для сброса
     const resetToken = crypto.randomBytes(32).toString("hex");
 
     await user.update({
-      verificationCode: resetToken, // временно сохраняем токен
+      verificationCode: resetToken,
     });
 
     res.json({
