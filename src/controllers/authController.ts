@@ -237,14 +237,29 @@ export const login = async (req: Request, res: Response) => {
     const token = generateToken(user.id, user.role);
 
     res.cookie("accessToken", token, {
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      domain: ".pop-utka.uz",
       path: "/",
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+      maxAge: 1000 * 60 * 60 * 24,
     });
 
-    return sendSuccess(res, { token: token }, ErrorCodes.LOGIN_SUCCESS);
+    sendSuccess(
+      res,
+      {
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          avatar: user.avatar,
+        },
+      },
+      ErrorCodes.LOGIN_SUCCESS,
+    );
   } catch (error: any) {
     console.error("Ошибка при входе:", error.message);
 
@@ -498,6 +513,9 @@ export const getMe = async (req: Request, res: Response) => {
 };
 
 export const logout = (req: Request, res: Response) => {
-  res.clearCookie("accessToken");
+  res.clearCookie("accessToken", {
+    domain: ".pop-utka.uz",
+    path: "/",
+  });
   return sendSuccess(res, {}, ErrorCodes.LOGOUT_SUCCESS);
 };
