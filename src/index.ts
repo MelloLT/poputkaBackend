@@ -16,48 +16,38 @@ import chatRoutes from "./routes/chats";
 import reviewRoutes from "./routes/reviews";
 import mapRoutes from "./routes/map";
 import { setupAssociations } from "./models/associations";
+import { config } from "dotenv";
 import { Server } from "socket.io";
 import notificationRoutes from "./routes/notifications";
 import { socketAuthMiddleware } from "./middleware/socketAuth";
+
 import { createServer } from "http";
 import adminRoutes from "./routes/admin";
 import citiesRoutes from "./routes/cities";
+config();
 
 dotenv.config();
 
 const app = express();
 const PORT = 5001;
 const server = createServer(app);
-
-// ===== CORS =====
-const allowedOrigins = ["https://pop-utka.uz", "http://localhost:5173"];
-
-app.use(
-  cors({
-    origin: allowedOrigins,
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
-  }),
-);
-
-// Preflight для всех маршрутов
-app.options("*", cors({ origin: allowedOrigins, credentials: true }));
-
-// ===== Middleware =====
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
-
-// ===== Socket.IO =====
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
+    origin: ["https://pop-utka.uz", "http://localhost:5173"],
     methods: ["GET", "POST"],
     credentials: true,
   },
 });
-
+// Middleware
+app.use(express.json());
+app.use(
+  cors({
+    origin: ["https://pop-utka.uz", "http://localhost:5173"],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
+  }),
+);
 io.use(socketAuthMiddleware);
 
 io.on("connection", (socket) => {
@@ -77,6 +67,8 @@ io.on("connection", (socket) => {
       text,
     });
 
+    console.log(`Emitting message to chat:${chatId}`, message.text);
+
     io.to(`chat:${String(chatId)}`).emit("new-message", {
       id: message.id,
       chatId,
@@ -88,7 +80,9 @@ io.on("connection", (socket) => {
   });
 });
 
-// ===== Маршруты =====
+app.use(cookieParser());
+
+// Маршруты
 app.use("/auth", authRoutes);
 app.use("/verification", verificationRoutes);
 app.use("/trips", tripRoutes);
@@ -103,7 +97,7 @@ app.use("/notifications", notificationRoutes);
 app.use("/chats", chatRoutes);
 app.use("/admin", adminRoutes);
 
-// ===== Тестовые эндпоинты =====
+// Базовые эндпоинты
 app.get("/", (req, res) => {
   res.json({
     message: "Бэкенд Poputka работает.",
@@ -116,11 +110,14 @@ app.get("/", (req, res) => {
   });
 });
 
+// Health check
 app.get("/health", (req, res) => {
-  res.json({ status: "OK", timestamp: new Date().toISOString() });
+  res.json({
+    status: "OK",
+    timestamp: new Date().toISOString(),
+  });
 });
 
-// ===== Старт сервера =====
 const startServer = async () => {
   try {
     await sequelize.authenticate();
