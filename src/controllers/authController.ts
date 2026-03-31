@@ -245,7 +245,21 @@ export const login = async (req: Request, res: Response) => {
       maxAge: 1000 * 60 * 60 * 24,
     });
 
-    return sendSuccess(res, { token: token }, ErrorCodes.LOGIN_SUCCESS);
+    sendSuccess(
+      res,
+      {
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          avatar: user.avatar,
+        },
+      },
+      ErrorCodes.LOGIN_SUCCESS,
+    );
   } catch (error: any) {
     console.error("Ошибка при входе:", error.message);
 

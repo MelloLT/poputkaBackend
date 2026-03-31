@@ -36,6 +36,9 @@ interface UserAttributes {
     authorId: string;
     text: string;
     rating: number;
+    driving?: number;
+    cleanliness?: number;
+    politeness?: number;
     createdAt: Date;
     tripId: string;
   }>;
@@ -197,6 +200,9 @@ class User
     authorId: string;
     text: string;
     rating: number;
+    driving?: number;
+    cleanliness?: number;
+    politeness?: number;
     createdAt: Date;
     tripId: string;
   }>;

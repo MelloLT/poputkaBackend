@@ -130,6 +130,7 @@ export const updateCar = async (req: Request, res: Response) => {
 export const getUserById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const currentUserId = req.user?.id;
 
     const user = await User.findByPk(id, {
       attributes: {
@@ -148,6 +149,31 @@ export const getUserById = async (req: Request, res: Response) => {
         success: false,
         message: "Пользователь не найден",
       });
+    }
+
+    const isOwner = currentUserId === id;
+
+    // Вычисляем детальные рейтинги только для владельца профиля
+    let detailedRatings = null;
+    if (isOwner && user.reviews && user.reviews.length > 0) {
+      const reviews = user.reviews;
+      const total = reviews.reduce(
+        (acc, r) => ({
+          driving: acc.driving + (r.driving || r.rating),
+          cleanliness: acc.cleanliness + (r.cleanliness || r.rating),
+          politeness: acc.politeness + (r.politeness || r.rating),
+        }),
+        { driving: 0, cleanliness: 0, politeness: 0 },
+      );
+
+      const count = reviews.length;
+      detailedRatings = {
+        driving: parseFloat((total.driving / count).toFixed(1)),
+        cleanliness: parseFloat((total.cleanliness / count).toFixed(1)),
+        politeness: parseFloat((total.politeness / count).toFixed(1)),
+        average: user.rating,
+        count: count,
+      };
     }
 
     let activeTrips = [];
@@ -295,7 +321,6 @@ export const getUserById = async (req: Request, res: Response) => {
         .filter((trip) => trip !== null);
     }
 
-    // Получаем myBookings
     const myBookings = await Booking.findAll({
       where: { passengerId: id },
       include: [
@@ -328,29 +353,33 @@ export const getUserById = async (req: Request, res: Response) => {
       order: [["createdAt", "DESC"]],
     });
 
+    const userData: any = {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      birthDate: user.birthDate,
+      avatar: user.avatar,
+      rating: user.rating,
+      isVerified: user.isVerified,
+      car: user.car,
+      about: user.about,
+      telegram: user.telegram,
+      tripsCount: user.tripsCount,
+      activeTrips: activeTrips,
+      myBookings: myBookings,
+    };
+
+    if (isOwner && detailedRatings) {
+      userData.detailedRatings = detailedRatings;
+    }
+
     res.json({
       success: true,
-      data: {
-        user: {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          phone: user.phone,
-          role: user.role,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          birthDate: user.birthDate,
-          avatar: user.avatar,
-          rating: user.rating,
-          isVerified: user.isVerified,
-          car: user.car,
-          about: user.about,
-          telegram: user.telegram,
-          tripsCount: user.tripsCount,
-          activeTrips: activeTrips,
-          myBookings: myBookings,
-        },
-      },
+      data: userData,
     });
   } catch (error) {
     console.error("Ошибка при получении пользователя:", error);
