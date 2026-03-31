@@ -31,6 +31,8 @@ dotenv.config();
 const app = express();
 const PORT = 5001;
 const server = createServer(app);
+const allowedOrigins = ["https://pop-utka.uz", "http://localhost:5173"];
+
 const io = new Server(server, {
   cors: {
     origin: ["https://pop-utka.uz", "http://localhost:5173"],
@@ -42,10 +44,30 @@ const io = new Server(server, {
 app.use(express.json());
 app.use(
   cors({
-    origin: ["https://pop-utka.uz", "http://localhost:5173"],
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true); // allow non-browser clients (curl, Postman)
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
+  }),
+);
+
+// Preflight для всех маршрутов
+app.options(
+  "*",
+  cors({
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) callback(null, true);
+      else callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
   }),
 );
 io.use(socketAuthMiddleware);
