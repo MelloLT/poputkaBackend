@@ -5,6 +5,8 @@ import User from "../models/User";
 import { updateTripParticipantsActiveTrips } from "../services/userTripsService";
 import { sendSuccess, sendError } from "../utils/responseHelper";
 import { ErrorCodes } from "../utils/errorCodes";
+import { io } from "../index";
+import { pushNotification } from "../utils/notifications";
 
 // Вспомогательная функция для добавления уведомлений
 const addNotification = async (
@@ -43,6 +45,7 @@ const addNotification = async (
     const limitedNotifications = updatedNotifications.slice(0, 100);
 
     await user.update({ notifications: limitedNotifications });
+    pushNotification(io, userId, newNotification);
     console.log(`Уведомление добавлено пользователю ${userId}: ${title}`);
   } catch (error) {
     console.error("Ошибка добавления уведомления:", error);
