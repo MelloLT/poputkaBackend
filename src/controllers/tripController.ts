@@ -9,7 +9,8 @@ import {
   updateTripParticipantsActiveTrips,
   updateUserActiveTrips,
 } from "../services/userTripsService";
-
+import { pushNotification } from "../utils/notifications";
+import { io } from "../index";
 export const addNotification = async (
   userId: string,
   type:
@@ -46,6 +47,7 @@ export const addNotification = async (
     await user.update({ notifications: limitedNotifications });
 
     console.log(`Уведомление добавлено пользователю ${userId}: ${title}`);
+    pushNotification(io, userId, newNotification);
     return newNotification;
   } catch (error) {
     console.error("Ошибка добавления уведомления:", error);

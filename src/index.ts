@@ -31,7 +31,7 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 const server = createServer(app);
-const io = new Server(server, {
+export const io = new Server(server, {
   cors: {
     origin: ["https://pop-utka.uz", "http://localhost:5173"],
     methods: ["GET", "POST"],
@@ -52,6 +52,9 @@ io.use(socketAuthMiddleware);
 
 io.on("connection", (socket) => {
   console.log("user connected", socket.data.user.username);
+  const userId = socket.data.user.id;
+  socket.join(`notifications:${userId}`);
+  console.log(`${socket.data.user.username} joined notifications:${userId}`);
 
   socket.on("join-chat", (chatId: string) => {
     console.log(`${socket.data.user.id} joins chat ${chatId}`);

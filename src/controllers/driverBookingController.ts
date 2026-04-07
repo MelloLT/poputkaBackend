@@ -3,6 +3,8 @@ import Booking from "../models/Booking";
 import Trip from "../models/Trip";
 import User from "../models/User";
 import { updateTripParticipantsActiveTrips } from "../services/userTripsService";
+import { io } from "../index";
+import { pushNotification } from "../utils/notifications";
 
 // Получить все бронирования для поездок водителя
 export const getDriverBookings = async (req: Request, res: Response) => {
@@ -134,6 +136,8 @@ export const confirmBooking = async (req: Request, res: Response) => {
         ...(passenger.notifications || []),
         newNotification,
       ];
+      pushNotification(io, passenger.id, newNotification);
+
       await passenger.update({ notifications: updatedNotifications });
     }
 
@@ -208,6 +212,8 @@ export const rejectBooking = async (req: Request, res: Response) => {
           ...(passenger.notifications || []),
           newNotification,
         ];
+        pushNotification(io, booking.passengerId, newNotification);
+
         await passenger.update({ notifications: updatedNotifications });
       }
     }
