@@ -101,7 +101,27 @@ export const confirmBooking = async (req: Request, res: Response) => {
         message: "Поездка не найдена",
       });
     }
+    if (trip.status === "created") {
+      return res.status(402).json({
+        success: false,
+        code: "PAYMENT_REQUIRED",
+        message:
+          "Для подтверждения бронирования необходимо оплатить налог за поездку",
+        data: {
+          tripId: trip.id,
+          status: trip.status,
+          requiresPayment: true,
+        },
+      });
+    }
 
+    // Если поездка не в статусе paid, тоже отклоняем
+    if (trip.status !== "paid") {
+      return res.status(400).json({
+        success: false,
+        message: `Поездка не готова к подтверждению. Текущий статус: ${trip.status}`,
+      });
+    }
     if (trip.availableSeats < booking.seats) {
       return res.status(400).json({
         success: false,

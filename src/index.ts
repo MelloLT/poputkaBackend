@@ -20,6 +20,7 @@ import { config } from "dotenv";
 import { Server } from "socket.io";
 import notificationRoutes from "./routes/notifications";
 import { socketAuthMiddleware } from "./middleware/socketAuth";
+import paymentRoutes from "./routes/payment";
 
 import { createServer } from "http";
 import adminRoutes from "./routes/admin";
@@ -99,6 +100,7 @@ app.use("/reviews", reviewRoutes);
 app.use("/notifications", notificationRoutes);
 app.use("/chats", chatRoutes);
 app.use("/admin", adminRoutes);
+app.use("/api/payment", paymentRoutes);
 
 // Базовые эндпоинты
 app.get("/", (req, res) => {

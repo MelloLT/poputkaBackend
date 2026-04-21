@@ -11,6 +11,7 @@ import {
 } from "../services/userTripsService";
 import { pushNotification } from "../utils/notifications";
 import { io } from "../index";
+import { sendSuccess, sendError } from "../utils/responseHelper";
 export const addNotification = async (
   userId: string,
   type:
@@ -698,5 +699,32 @@ export const completeTrip = async (req: Request, res: Response) => {
       success: false,
       message: "Ошибка сервера при завершении поездки",
     });
+  }
+};
+export const checkTripPaymentStatus = async (req: Request, res: Response) => {
+  try {
+    const { tripId } = req.params;
+    const userId = req.user!.id;
+
+    const trip = await Trip.findByPk(tripId);
+
+    if (!trip) {
+      return sendError(res, "TRIP_NOT_FOUND", 404);
+    }
+
+    // Проверяем, что пользователь - водитель этой поездки
+    if (trip.driverId !== userId) {
+      return sendError(res, "ACCESS_DENIED", 403);
+    }
+
+    sendSuccess(res, {
+      tripId: trip.id,
+      status: trip.status,
+      isPaid: trip.status === "paid",
+      requiresPayment: trip.status === "created",
+    });
+  } catch (error: any) {
+    console.error("Check payment status error:", error.message);
+    sendError(res, "CHECK_STATUS_ERROR", 500);
   }
 };
