@@ -1,14 +1,14 @@
-// src/utils/responseHelper.ts
 import { Response } from "express";
-import { ErrorCodes, ErrorResponse, SuccessResponse } from "./errorCodes";
 
+// Обновленная функция sendSuccess с поддержкой кодов
 export const sendSuccess = <T>(
   res: Response,
   data: T,
-  code?: string,
-  meta?: Record<string, any>,
+  code?: string, // Теперь code опциональный, но рекомендуется передавать
+  status: number = 200,
+  meta?: Record<string, any>, // Добавляем meta для дополнительных данных
 ) => {
-  const response: SuccessResponse<T> = {
+  const response: any = {
     success: true,
     data,
   };
@@ -16,16 +16,17 @@ export const sendSuccess = <T>(
   if (code) response.code = code;
   if (meta) response.meta = meta;
 
-  res.json(response);
+  res.status(status).json(response);
 };
 
+// Функция для ошибок с поддержкой динамических параметров
 export const sendError = (
   res: Response,
   code: string,
   status: number = 400,
-  meta?: Record<string, any>,
+  meta?: Record<string, any>, // Для динамических параметров
 ) => {
-  const response: ErrorResponse = {
+  const response: any = {
     success: false,
     code,
   };
@@ -35,7 +36,9 @@ export const sendError = (
   res.status(status).json(response);
 };
 
-// Для динамических ошибок типа "Требуется роль: ADMIN"
-export const sendRoleError = (res: Response, role: string) => {
-  sendError(res, ErrorCodes.ADMIN_RIGHTS_REQUIRED, 403, { role });
+// Утилита для создания meta с параметрами (для единообразия)
+export const createErrorMeta = (
+  params: Record<string, any>,
+): Record<string, any> => {
+  return params;
 };

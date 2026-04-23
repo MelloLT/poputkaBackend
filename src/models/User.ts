@@ -1,6 +1,7 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 import { generateId } from "../utils/idGenerator";
+import { Notification } from "../types/notificationTypes";
 
 interface Location {
   cityKey: string;
@@ -100,14 +101,20 @@ interface UserAttributes {
       | "booking_request"
       | "booking_confirmed"
       | "booking_rejected"
+      | "booking_cancelled"
+      | "trip_completed"
+      | "payment_success"
+      | "payment_failed"
+      | "trip_status_change"
       | "info"
       | "success"
       | "error";
-    title: string;
-    message: string;
+    code: string; // Вместо title и message
+    params: Record<string, any>; // Динамические параметры
     isRead: boolean;
     createdAt: Date;
     relatedBookingId?: string;
+    relatedTripId?: string;
   }>;
   reports: Array<{
     id: string;
@@ -261,14 +268,20 @@ class User
       | "booking_request"
       | "booking_confirmed"
       | "booking_rejected"
+      | "booking_cancelled"
+      | "trip_completed"
+      | "payment_success"
+      | "payment_failed"
+      | "trip_status_change"
       | "info"
       | "success"
       | "error";
-    title: string;
-    message: string;
+    code: string;
+    params: Record<string, any>;
     isRead: boolean;
     createdAt: Date;
     relatedBookingId?: string;
+    relatedTripId?: string;
   }>;
   public reports!: Array<{
     id: string;
