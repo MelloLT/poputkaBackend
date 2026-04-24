@@ -12,49 +12,8 @@ import {
 import { pushNotification } from "../utils/notifications";
 import { io } from "../index";
 import { sendSuccess, sendError } from "../utils/responseHelper";
-export const addNotification = async (
-  userId: string,
-  type:
-    | "booking_request"
-    | "booking_confirmed"
-    | "booking_rejected"
-    | "info"
-    | "success"
-    | "error",
-  title: string,
-  message: string,
-  relatedBookingId?: string,
-) => {
-  try {
-    const user = await User.findByPk(userId);
-    if (!user) return;
-
-    const newNotification = {
-      id: `NT${Date.now()}${Math.random().toString(36).substr(2, 9)}`,
-      type,
-      title,
-      message,
-      isRead: false,
-      createdAt: new Date(),
-      relatedBookingId,
-    };
-
-    const updatedNotifications = [
-      newNotification,
-      ...(user.notifications || []),
-    ];
-
-    const limitedNotifications = updatedNotifications.slice(0, 100);
-    await user.update({ notifications: limitedNotifications });
-
-    console.log(`Уведомление добавлено пользователю ${userId}: ${title}`);
-    pushNotification(io, userId, newNotification);
-    return newNotification;
-  } catch (error) {
-    console.error("Ошибка добавления уведомления:", error);
-    return null;
-  }
-};
+import { addNotification } from "../utils/notificationHelper";
+import { ErrorCodes } from "../utils/errorCodes";
 
 export const getTrips = async (req: Request, res: Response) => {
   try {
@@ -512,9 +471,14 @@ export const deleteTrip = async (req: Request, res: Response) => {
         await addNotification(
           booking.passengerId,
           "error",
-          "Поездка отменена",
-          `Водитель отменил поездку ${trip.from.cityKey} → ${trip.to.cityKey}`,
+          ErrorCodes.NOTIFICATION_INFO_GENERAL,
+          {
+            from: trip.from.cityKey,
+            to: trip.to.cityKey,
+            reason: "driver_cancelled",
+          },
           booking.id,
+          trip.id,
         );
       }
     }

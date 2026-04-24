@@ -69,7 +69,6 @@ export const confirmBooking = async (req: Request, res: Response) => {
     const { bookingId } = req.params;
     const driverId = req.user!.id;
 
-    // Находим бронирование и проверяем что водитель владеет поездкой
     const booking = await Booking.findOne({
       where: { id: bookingId },
       include: [
@@ -83,108 +82,81 @@ export const confirmBooking = async (req: Request, res: Response) => {
     });
 
     if (!booking) {
-      return res.status(404).json({
-        success: false,
-        message: "Бронь не найдена или у вас нет прав",
-      });
+      return sendError(res, ErrorCodes.BOOKING_NOT_FOUND, 404);
     }
 
     if (booking.status !== "pending") {
-      return res.status(400).json({
-        success: false,
-        message: "Бронь уже обработана",
-      });
+      return sendError(res, ErrorCodes.BOOKING_ALREADY_PROCESSED, 400);
     }
 
-    // Проверяем что есть достаточно мест
     const trip = await Trip.findByPk(booking.tripId);
     if (!trip) {
-      return res.status(404).json({
-        success: false,
-        message: "Поездка не найдена",
-      });
+      return sendError(res, ErrorCodes.TRIP_NOT_FOUND, 404);
     }
+
+    // Проверка статуса поездки для оплаты
     if (trip.status === "created") {
-      return res.status(402).json({
-        success: false,
-        code: "PAYMENT_REQUIRED",
-        message:
-          "Для подтверждения бронирования необходимо оплатить налог за поездку",
-        data: {
-          tripId: trip.id,
-          status: trip.status,
-          requiresPayment: true,
-        },
+      return sendError(res, ErrorCodes.PAYMENT_REQUIRED, 402, {
+        tripId: trip.id,
+        requiresPayment: true,
       });
     }
 
-    // Если поездка не в статусе paid, тоже отклоняем
     if (trip.status !== "paid") {
-      return res.status(400).json({
-        success: false,
-        message: `Поездка не готова к подтверждению. Текущий статус: ${trip.status}`,
+      return sendError(res, ErrorCodes.TRIP_NOT_FOUND, 400, {
+        currentStatus: trip.status,
+        expectedStatus: "paid",
       });
     }
+
     if (trip.availableSeats < booking.seats) {
-      return res.status(400).json({
-        success: false,
-        message: "Недостаточно свободных мест",
+      return sendError(res, ErrorCodes.NO_AVAILABLE_SEATS, 400, {
+        availableSeats: trip.availableSeats,
+        requestedSeats: booking.seats,
       });
     }
 
-    // Обновить бронирование
+    // Подтверждаем бронь
     await booking.update({ status: "confirmed" });
-
-    // Обновить количество свободных мест
     await trip.update({
       availableSeats: trip.availableSeats - booking.seats,
     });
 
     await updateTripParticipantsActiveTrips(trip.id);
 
-    // Добавить уведомление пассажиру
-    const passenger = await User.findByPk(booking.passengerId);
-    if (passenger) {
-      const newNotification = {
-        id: Date.now().toString(),
-        type: "success" as const,
-        title: "Бронь подтверждена",
-        message: `Водитель подтвердил вашу бронь на поездку ${trip.from.cityKey} → ${trip.to.cityKey}`,
-        isRead: false,
-        createdAt: new Date(),
-        relatedBookingId: booking.id,
-      };
+    // Уведомление пассажиру
+    await addNotification(
+      booking.passengerId,
+      "booking_confirmed",
+      ErrorCodes.NOTIFICATION_BOOKING_CONFIRMED_TO_PASSENGER,
+      {
+        seats: booking.seats,
+        from: trip.from.cityKey,
+        to: trip.to.cityKey,
+        departureAt: trip.departureAt,
+        driverName: `${req.user!.firstName} ${req.user!.lastName}`,
+      },
+      booking.id,
+      trip.id,
+    );
 
-      const updatedNotifications = [
-        ...(passenger.notifications || []),
-        newNotification,
-      ];
-      pushNotification(io, passenger.id, newNotification);
-
-      await passenger.update({ notifications: updatedNotifications });
-    }
-
-    res.json({
-      success: true,
-      message: "Бронь подтверждена",
-      data: booking,
-    });
-  } catch (error) {
-    console.error("Ошибка подтверждения брони:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка при подтверждении брони",
-    });
+    return sendSuccess(
+      res,
+      { booking, trip },
+      ErrorCodes.BOOKING_CONFIRMED_SUCCESS,
+    );
+  } catch (error: any) {
+    console.error("Confirm booking error:", error.message);
+    return sendError(res, ErrorCodes.BOOKING_CONFIRM_ERROR, 500);
   }
 };
 
-// Отклонить бронирование
+// Функция rejectBooking
 export const rejectBooking = async (req: Request, res: Response) => {
   try {
     const { bookingId } = req.params;
     const driverId = req.user!.id;
 
-    // Нахождение бронирования и проверка что водитель владеет поездкой
     const booking = await Booking.findOne({
       where: { id: bookingId },
       include: [
@@ -198,62 +170,39 @@ export const rejectBooking = async (req: Request, res: Response) => {
     });
 
     if (!booking) {
-      return res.status(404).json({
-        success: false,
-        message: "Бронь не найдена или у вас нет прав",
-      });
+      return sendError(res, ErrorCodes.BOOKING_NOT_FOUND, 404);
     }
 
     if (booking.status !== "pending") {
-      return res.status(400).json({
-        success: false,
-        message: "Бронь уже обработана",
-      });
+      return sendError(res, ErrorCodes.BOOKING_ALREADY_PROCESSED, 400);
     }
 
-    // Обновить бронирование
     await booking.update({ status: "rejected" });
     await updateTripParticipantsActiveTrips(booking.tripId);
 
-    // Добавление уведомление пассажиру
-    const passenger = await User.findByPk(booking.passengerId);
-    if (passenger) {
-      // Получаем данные поездки для уведомления
-      const trip = await Trip.findByPk(booking.tripId);
-      if (trip) {
-        const newNotification = {
-          id: Date.now().toString(),
-          type: "error" as const,
-          title: "Бронь отклонена",
-          message: `Водитель отклонил вашу бронь на поездку ${trip.from.cityKey} → ${trip.to.cityKey}`,
-          isRead: false,
-          createdAt: new Date(),
-          relatedBookingId: booking.id,
-        };
+    const trip = await Trip.findByPk(booking.tripId);
 
-        const updatedNotifications = [
-          ...(passenger.notifications || []),
-          newNotification,
-        ];
-        pushNotification(io, booking.passengerId, newNotification);
+    // Уведомление пассажиру
+    await addNotification(
+      booking.passengerId,
+      "booking_rejected",
+      ErrorCodes.NOTIFICATION_BOOKING_REJECTED_TO_PASSENGER,
+      {
+        seats: booking.seats,
+        from: trip?.from.cityKey,
+        to: trip?.to.cityKey,
+      },
+      booking.id,
+      booking.tripId,
+    );
 
-        await passenger.update({ notifications: updatedNotifications });
-      }
-    }
-
-    res.json({
-      success: true,
-      message: "Бронь отклонена",
-      data: booking,
-    });
-  } catch (error) {
-    console.error("Ошибка отклонения брони:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка при отклонении брони",
-    });
+    return sendSuccess(res, { booking }, ErrorCodes.BOOKING_REJECTED_SUCCESS);
+  } catch (error: any) {
+    console.error("Reject booking error:", error.message);
+    return sendError(res, ErrorCodes.BOOKING_REJECT_ERROR, 500);
   }
 };
+
 
 export const getDriverTripHistory = async (req: Request, res: Response) => {
   try {

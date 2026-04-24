@@ -8,19 +8,24 @@ import { ErrorCodes } from "../utils/errorCodes";
 import { io } from "../index";
 import { pushNotification } from "../utils/notifications";
 
-// Вспомогательная функция для добавления уведомлений
+// функция для добавления уведомлений
 const addNotification = async (
   userId: string,
   type:
     | "booking_request"
     | "booking_confirmed"
     | "booking_rejected"
+    | "booking_cancelled"
+    | "trip_completed"
+    | "payment_success"
+    | "payment_failed"
     | "info"
     | "success"
     | "error",
-  title: string,
-  message: string,
+  code: string,
+  params: Record<string, any>,
   relatedBookingId?: string,
+  relatedTripId?: string,
 ) => {
   try {
     const user = await User.findByPk(userId);
@@ -29,11 +34,12 @@ const addNotification = async (
     const newNotification = {
       id: `NT${Date.now()}${Math.random().toString(36).substr(2, 9)}`,
       type,
-      title,
-      message,
+      code,
+      params,
       isRead: false,
       createdAt: new Date(),
       relatedBookingId,
+      relatedTripId,
     };
 
     const updatedNotifications = [
@@ -41,12 +47,11 @@ const addNotification = async (
       ...(user.notifications || []),
     ];
 
-    // Ограничиваем количество хранимых уведомлений (последние 100)
     const limitedNotifications = updatedNotifications.slice(0, 100);
 
     await user.update({ notifications: limitedNotifications });
     pushNotification(io, userId, newNotification);
-    console.log(`Уведомление добавлено пользователю ${userId}: ${title}`);
+    console.log(`Уведомление добавлено пользователю ${userId}: code=${code}`);
   } catch (error) {
     console.error("Ошибка добавления уведомления:", error);
   }
@@ -122,22 +127,31 @@ export const createBooking = async (req: Request, res: Response) => {
       ],
     });
 
-    // Добавляем уведомление пассажиру
     if (trip.instantBooking) {
       await addNotification(
         passengerId,
         "booking_confirmed",
-        "Бронь создана",
-        `Вы забронировали ${seats} место(а) в поездке ${trip.from.cityKey} → ${trip.to.cityKey}. Поездка подтверждена автоматически.`,
+        ErrorCodes.NOTIFICATION_BOOKING_CONFIRMED_AUTO_TO_PASSENGER,
+        {
+          seats: seats,
+          from: trip.from.cityKey,
+          to: trip.to.cityKey,
+        },
         booking.id,
+        trip.id,
       );
     } else {
       await addNotification(
         passengerId,
         "booking_request",
-        "Запрос отправлен",
-        `Ваш запрос на бронирование ${seats} места(а) в поездке ${trip.from.cityKey} → ${trip.to.cityKey} отправлен водителю. Ожидайте подтверждения.`,
+        ErrorCodes.NOTIFICATION_BOOKING_REQUEST_TO_PASSENGER,
+        {
+          seats: seats,
+          from: trip.from.cityKey,
+          to: trip.to.cityKey,
+        },
         booking.id,
+        trip.id,
       );
     }
 
@@ -146,31 +160,47 @@ export const createBooking = async (req: Request, res: Response) => {
       await addNotification(
         trip.driverId,
         "booking_request",
-        "Новый запрос на бронирование",
-        `${req.user!.firstName} ${
-          req.user!.lastName
-        } хочет забронировать ${seats} место(а) в вашей поездке.`,
+        ErrorCodes.NOTIFICATION_BOOKING_REQUEST_TO_DRIVER,
+        {
+          passengerName: `${req.user!.firstName} ${req.user!.lastName}`,
+          seats: seats,
+          from: trip.from.cityKey,
+          to: trip.to.cityKey,
+        },
         booking.id,
+        trip.id,
       );
     } else {
       await addNotification(
         trip.driverId,
         "booking_confirmed",
-        "Автоматическое бронирование",
-        `${req.user!.firstName} ${
-          req.user!.lastName
-        } забронировал(а) ${seats} место(а) в вашей поездке через мгновенное бронирование.`,
+        ErrorCodes.NOTIFICATION_BOOKING_CONFIRMED_AUTO_TO_DRIVER,
+        {
+          seats: seats,
+          passengerName: `${req.user!.firstName} ${req.user!.lastName}`,
+        },
         booking.id,
+        trip.id,
       );
     }
 
-    res.status(201).json({
-      success: true,
-      message: trip.instantBooking
-        ? "Бронь создана успешно"
-        : "Запрос на бронь отправлен. Ожидайте подтверждения водителя",
-      data: bookingWithDetails,
-    });
+    if (trip.instantBooking) {
+      return sendSuccess(
+        res,
+        { booking: bookingWithDetails },
+        ErrorCodes.BOOKING_CREATED,
+        201,
+        { instantBooking: true },
+      );
+    } else {
+      return sendSuccess(
+        res,
+        { booking: bookingWithDetails },
+        ErrorCodes.BOOKING_PENDING,
+        201,
+        { requiresConfirmation: true },
+      );
+    }
   } catch (error: any) {
     console.error("Ошибка при создании брони:", error.message);
     return sendError(res, ErrorCodes.BOOKING_CREATE_ERROR, 500);
@@ -400,13 +430,13 @@ export const cancelBooking = async (req: Request, res: Response) => {
       await addNotification(
         trip.driverId,
         "booking_rejected",
-        "Бронь отменена",
-        `${req.user!.firstName} ${
-          req.user!.lastName
-        } отменил(а) бронирование на ${
-          booking.seats
-        } место(а) в вашей поездке.`,
+        ErrorCodes.NOTIFICATION_BOOKING_CANCELLED_BY_PASSENGER_TO_DRIVER,
+        {
+          seats: booking.seats,
+          passengerName: `${req.user!.firstName} ${req.user!.lastName}`,
+        },
         booking.id,
+        trip.id,
       );
     }
 
@@ -414,9 +444,14 @@ export const cancelBooking = async (req: Request, res: Response) => {
     await addNotification(
       passengerId,
       "info",
-      "Бронь отменена",
-      `Вы отменили бронирование на ${booking.seats} место(а) в поездке ${trip?.from.cityKey} → ${trip?.to.cityKey}.`,
+      ErrorCodes.NOTIFICATION_BOOKING_CANCELLED_BY_PASSENGER_TO_PASSENGER,
+      {
+        seats: booking.seats,
+        from: trip?.from.cityKey,
+        to: trip?.to.cityKey,
+      },
       booking.id,
+      trip?.id,
     );
 
     return sendSuccess(res, null, ErrorCodes.BOOKING_CANCELLED);
@@ -440,7 +475,7 @@ export const getPassengerActiveTrips = async (req: Request, res: Response) => {
           model: Trip,
           as: "trip",
           where: {
-            status: "active", // Только активные поездки
+            status: "active",
           },
           include: [
             {
