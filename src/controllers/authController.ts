@@ -45,9 +45,8 @@ export const register = async (req: Request, res: Response) => {
 
     if (missingFields.length > 0) {
       console.log("Отсутствуют поля:", missingFields);
-      return res.status(400).json({
-        success: false,
-        message: `Не заполнены обязательные поля: ${missingFields.join(", ")}`,
+      return sendError(res, ErrorCodes.EMPTY_OR_UNPARSED_REQUEST_BODY, 400, {
+        missingFields: missingFields,
       });
     }
 
@@ -120,9 +119,8 @@ export const register = async (req: Request, res: Response) => {
     }
 
     if (validationErrors.length > 0) {
-      return res.status(422).json({
-        success: false,
-        message: validationErrors.join(". "),
+      return sendError(res, ErrorCodes.EMPTY_OR_UNPARSED_REQUEST_BODY, 422, {
+        validationErrors: validationErrors,
       });
     }
 
@@ -140,9 +138,8 @@ export const register = async (req: Request, res: Response) => {
       if (existingUser.email === email) conflicts.push("email");
       if (existingUser.phone === phone) conflicts.push("телефон");
 
-      return res.status(400).json({
-        success: false,
-        message: `Пользователь с таким ${conflicts.join(", ")} уже существует`,
+      return sendError(res, ErrorCodes.USER_ALREADY_EXISTS, 400, {
+        conflicts: conflicts,
       });
     }
 
@@ -169,10 +166,9 @@ export const register = async (req: Request, res: Response) => {
       notifications: [],
     });
 
-    res.status(201).json({
-      success: true,
-      message: "Пользователь успешно зарегистрирован",
-      data: {
+    return sendSuccess(
+      res,
+      {
         user: {
           id: user.id,
           username: user.username,
@@ -191,7 +187,9 @@ export const register = async (req: Request, res: Response) => {
           car: user.car,
         },
       },
-    });
+      ErrorCodes.USER_REGISTERED,
+      201,
+    );
   } catch (error: any) {
     console.log("ОШИБКА РЕГИСТРАЦИИ");
     console.error("Тип ошибки:", typeof error);
@@ -201,9 +199,8 @@ export const register = async (req: Request, res: Response) => {
 
     if (error.name === "SequelizeValidationError") {
       const validationErrors = error.errors.map((err: any) => err.message);
-      return res.status(422).json({
-        success: false,
-        message: validationErrors.join(". "),
+      return sendError(res, ErrorCodes.VALIDATION_ERROR, 422, {
+        errors: validationErrors,
       });
     }
 
@@ -471,10 +468,9 @@ export const getMe = async (req: Request, res: Response) => {
       "MY_BOOKINGS_STRUCTURE:",
       JSON.stringify(myBookings[0], null, 2),
     );
-    res.json({
-      success: true,
-      message: "Данные пользователя",
-      data: {
+    return sendSuccess(
+      res,
+      {
         user: {
           id: user.id,
           username: user.username,
@@ -502,13 +498,12 @@ export const getMe = async (req: Request, res: Response) => {
 
         notifications: freshNotifications,
       },
-    });
+      ErrorCodes.USER_DATA,
+      200,
+    );
   } catch (error: any) {
     console.error("Ошибка в getMe:", error.message);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера",
-    });
+    return sendError(res, ErrorCodes.USERS_FETCH_ERROR, 500);
   }
 };
 

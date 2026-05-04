@@ -77,9 +77,8 @@ export const createBooking = async (req: Request, res: Response) => {
     }
 
     if (trip.availableSeats < seats) {
-      return res.status(400).json({
-        success: false,
-        message: `Недостаточно свободных мест. Доступно: ${trip.availableSeats}`,
+      return sendError(res, ErrorCodes.NO_AVAILABLE_SEATS, 400, {
+        availableSeats: trip.availableSeats,
       });
     }
 
@@ -409,10 +408,7 @@ export const cancelBooking = async (req: Request, res: Response) => {
     });
 
     if (!booking) {
-      return res.status(404).json({
-        success: false,
-        message: "Бронь не найдена",
-      });
+      return sendError(res, ErrorCodes.BOOKING_NOT_FOUND, 404);
     }
 
     const trip = await Trip.findByPk(booking.tripId);

@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import Trip from "../models/Trip";
 import { sendSuccess, sendError } from "../utils/responseHelper";
+import { ErrorCodes } from "../utils/errorCodes";
 
 export const paymentCallback = async (req: Request, res: Response) => {
   try {
@@ -28,13 +29,16 @@ export const paymentCallback = async (req: Request, res: Response) => {
 
     console.log(`Trip ${tripId} status updated to paid`);
 
-    sendSuccess(res, {
-      tripId: trip.id,
-      status: trip.status,
-      message: "Trip status updated to paid",
-    });
+    return sendSuccess(
+      res,
+      {
+        tripId: trip.id,
+        status: trip.status,
+      },
+      ErrorCodes.TRIP_PAID_SUCCESS,
+    );
   } catch (error: any) {
     console.error("Payment callback error:", error.message);
-    sendError(res, "PAYMENT_CALLBACK_ERROR", 500);
+    return sendError(res, ErrorCodes.PAYMENT_CALLBACK_ERROR, 500);
   }
 };

@@ -118,10 +118,7 @@ export const sendMessage = async (req: Request, res: Response) => {
       text,
     });
 
-    return res.status(201).json({
-      success: true,
-      data: message,
-    });
+    return sendSuccess(res, { message: message }, "MESSAGE_SENT", 201);
   } catch (error: any) {
     console.error("Ошибка отправки сообщения:", error.message);
     return sendError(res, ErrorCodes.CHAT_SEND_ERROR, 500);
@@ -158,9 +155,10 @@ export const createChat = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("Ошибка создания чата:", error.message);
-    return res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при создании чата",
-    });
+    // return res.status(500).json({
+    //   success: false,
+    //   message: "Ошибка сервера при создании чата",
+    // });
+    return sendError(res, ErrorCodes.CHAT_SERVER_ERROR, 500);
   }
 };
