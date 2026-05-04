@@ -14,6 +14,7 @@ import uploadRoutes from "./routes/upload";
 import driverBookingsRoutes from "./routes/driverBookings";
 import chatRoutes from "./routes/chats";
 import reviewRoutes from "./routes/reviews";
+import otpRouter from "./routes/otp";
 import mapRoutes from "./routes/map";
 import { setupAssociations } from "./models/associations";
 import { config } from "dotenv";
@@ -98,6 +99,8 @@ app.use("/driver/bookings", driverBookingsRoutes);
 app.use("/map", mapRoutes);
 app.use("/reviews", reviewRoutes);
 app.use("/notifications", notificationRoutes);
+app.use("/otp", otpRouter);
+
 app.use("/chats", chatRoutes);
 app.use("/admin", adminRoutes);
 app.use("/api/payment", paymentRoutes);
