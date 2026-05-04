@@ -6,7 +6,7 @@ const generateNotificationId = (): string => {
 };
 
 export const addNotification = async (
-  userId: string,
+  userId: any,
   type: NotificationType,
   code: string,
   params: Record<string, any> = {},
