@@ -496,7 +496,7 @@ export const getMe = async (req: Request, res: Response) => {
 
 export const logout = (req: Request, res: Response) => {
   res.clearCookie("accessToken", {
-    // domain: ".pop-utka.uz",
+    domain: ".pop-utka.uz",
     path: "/",
   });
   return sendSuccess(res, {}, ErrorCodes.LOGOUT_SUCCESS);

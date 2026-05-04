@@ -108,6 +108,7 @@ export const verifyOtpService = async (req: Request, res: Response) => {
     const token = generateToken(userId, userRole);
 
     res.cookie("accessToken", token, {
+      domain: ".pop-utka.uz",
       path: "/",
       httpOnly: true,
       secure: true,
