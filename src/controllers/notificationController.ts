@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
 import User from "../models/User";
+import { ErrorCodes } from "../utils/errorCodes";
+import { sendError, sendSuccess } from "../utils/responseHelper";
 
 export const getNotifications = async (req: Request, res: Response) => {
   try {
@@ -7,10 +9,7 @@ export const getNotifications = async (req: Request, res: Response) => {
     const user = await User.findByPk(userId);
 
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "Пользователь не найден",
-      });
+      return sendError(res, ErrorCodes.USER_NOT_FOUND, 404);
     }
 
     // Автоматически удаляем старые уведомления (>30 дней)
@@ -25,7 +24,7 @@ export const getNotifications = async (req: Request, res: Response) => {
     console.log(`Всего в БД: ${user.notifications?.length || 0}`);
     console.log(`После фильтрации (>30 дней): ${freshNotifications.length}`);
     console.log(
-      `- Непрочитанных: ${freshNotifications.filter((n) => !n.isRead).length}`,
+      `Непрочитанных: ${freshNotifications.filter((n) => !n.isRead).length}`,
     );
 
     // Логируем все уведомления для отладки
@@ -43,20 +42,18 @@ export const getNotifications = async (req: Request, res: Response) => {
       await user.update({ notifications: freshNotifications });
     }
 
-    res.json({
-      success: true,
-      data: freshNotifications,
-      meta: {
+    return sendSuccess(
+      res,
+      { freshNotifications },
+      ErrorCodes.NOTIFICATIONS_FETCH_SUCCESS,
+      200,
+      {
         total: freshNotifications.length,
         unread: freshNotifications.filter((n) => !n.isRead).length,
       },
-    });
+    );
   } catch (error: any) {
-    console.error("Ошибка получения уведомлений:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при получении уведомлений",
-    });
+    return sendError(res, ErrorCodes.NOTIFICATIONS_FETCH_ERROR, 500);
   }
 };
 

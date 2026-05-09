@@ -155,10 +155,6 @@ export const createChat = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("Ошибка создания чата:", error.message);
-    // return res.status(500).json({
-    //   success: false,
-    //   message: "Ошибка сервера при создании чата",
-    // });
     return sendError(res, ErrorCodes.CHAT_SERVER_ERROR, 500);
   }
 };
