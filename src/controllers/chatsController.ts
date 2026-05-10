@@ -5,6 +5,7 @@ import { Request, Response } from "express";
 import { Op } from "sequelize";
 import { sendSuccess, sendError } from "../utils/responseHelper";
 import { ErrorCodes } from "../utils/errorCodes";
+import { DataType } from "sequelize-typescript";
 
 export const getChats = async (req: any, res: any) => {
   try {
@@ -41,10 +42,11 @@ export const getChats = async (req: any, res: any) => {
       order: [["createdAt", "DESC"]],
     });
 
-    return res.json({ success: true, data: chats });
+    // return res.json({ success: true, data: chats });
+    return sendSuccess(res, { chats }, ErrorCodes.CHAT_FETCH_SUCCESS, 200);
   } catch (err: any) {
     console.error("Ошибка при получении чатов:", err.message);
-    return res.status(500).json({ success: false, message: err.message });
+    return sendError(res, ErrorCodes.CHAT_SERVER_ERROR, 500);
   }
 };
 export const getChatByID = async (req: Request, res: Response) => {
@@ -83,10 +85,11 @@ export const getChatByID = async (req: Request, res: Response) => {
       return sendError(res, ErrorCodes.CHAT_NOT_FOUND, 404);
     }
 
-    res.json({
-      success: true,
-      data: chat,
-    });
+    // res.json({
+    //   success: true,
+    //   data: chat,
+    // });
+    return sendSuccess(res, { chat }, ErrorCodes.CHAT_FETCH_SUCCESS, 200);
   } catch (error) {
     console.error("Ошибка при получении поездки:", error);
     return sendError(res, ErrorCodes.CHAT_SERVER_ERROR, 500);
@@ -149,10 +152,7 @@ export const createChat = async (req: Request, res: Response) => {
 
     const chat = await Chat.create({ user1Id, user2Id });
 
-    return res.status(201).json({
-      success: true,
-      data: chat,
-    });
+    return sendSuccess(res, { chat }, ErrorCodes.CHAT_FETCH_SUCCESS, 201);
   } catch (error: any) {
     console.error("Ошибка создания чата:", error.message);
     return sendError(res, ErrorCodes.CHAT_SERVER_ERROR, 500);
