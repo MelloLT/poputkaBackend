@@ -6,6 +6,7 @@ import Booking from "../models/Booking";
 import Trip from "../models/Trip";
 import { sendSuccess, sendError } from "../utils/responseHelper";
 import { ErrorCodes } from "../utils/errorCodes";
+import jwt from "jsonwebtoken";
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -224,6 +225,24 @@ export const login = async (req: Request, res: Response) => {
       return sendError(res, ErrorCodes.INVALID_LOGIN_PASSWORD, 400);
     }
 
+    // Потом удалить
+    const token = jwt.sign(
+      { userId: user.id, userRole: user.role },
+      process.env.JWT_SECRET || "your-secret-key",
+      { expiresIn: "7d" },
+    );
+
+    res.cookie("accessToken", token, {
+      domain: ".pop-utka.uz",
+      path: "/",
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "none",
+      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 дней
+    });
+
+    // Потом удалить
+
     sendSuccess(
       res,
       {
@@ -238,6 +257,7 @@ export const login = async (req: Request, res: Response) => {
         },
       },
       ErrorCodes.LOGIN_SUCCESS,
+      200,
     );
   } catch (error: any) {
     console.error("Ошибка при входе:", error.message);
@@ -494,5 +514,5 @@ export const logout = (req: Request, res: Response) => {
     domain: ".pop-utka.uz",
     path: "/",
   });
-  return sendSuccess(res, {}, ErrorCodes.LOGOUT_SUCCESS);
+  return sendSuccess(res, {}, ErrorCodes.LOGOUT_SUCCESS, 200);
 };
