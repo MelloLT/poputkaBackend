@@ -7,7 +7,33 @@ import { ErrorCodes } from "../utils/errorCodes";
 import { sendError, sendSuccess } from "../utils/responseHelper";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+export const sendSmsCode = async (phone: string, code: string) => {
+  try {
+    const response = await axios.post(
+      "http://185.8.212.184/smsgateway/",
+      new URLSearchParams({
+        login: "Creditasia",
+        password: "q7tDuogeunJW9M7474v4",
+        data: JSON.stringify([
+          {
+            phone: "998901148203",
+            text: `PopUtka kod avtorizacii na saite: ${code}`,
+          },
+        ]),
+      }),
+      {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      },
+    );
 
+    return response.data;
+  } catch (error) {
+    console.error("GETSMS ERROR", error);
+    throw error;
+  }
+};
 const generateToken = (userId: string, userRole: string) => {
   return jwt.sign({ userId, userRole }, JWT_SECRET, { expiresIn: "7d" });
 };
@@ -34,7 +60,7 @@ export const sendOtpService = async (req: Request, res: Response) => {
       expiresAt: new Date(Date.now() + 5 * 60 * 1000),
       maxAttempts: 2,
     });
-
+    await sendSmsCode(phone, code);
     return sendSuccess(res, { code: code }, ErrorCodes.OTP_SENT_SUCCESS, 200);
   } catch (e: any) {
     return sendError(res, ErrorCodes.OTP_SEND_ERROR, 500);

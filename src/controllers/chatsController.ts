@@ -5,7 +5,6 @@ import { Request, Response } from "express";
 import { Op } from "sequelize";
 import { sendSuccess, sendError } from "../utils/responseHelper";
 import { ErrorCodes } from "../utils/errorCodes";
-import { DataType } from "sequelize-typescript";
 
 export const getChats = async (req: any, res: any) => {
   try {
