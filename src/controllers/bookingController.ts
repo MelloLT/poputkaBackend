@@ -235,10 +235,12 @@ export const getMyBookings = async (req: Request, res: Response) => {
       order: [["createdAt", "DESC"]],
     });
 
-    res.json({
-      success: true,
-      data: bookings,
-    });
+    return sendSuccess(
+      res,
+      { bookings },
+      ErrorCodes.BOOKING_FETCH_SUCCESS,
+      200,
+    );
   } catch (error: any) {
     console.error("Ошибка при получении броней:", error.message);
     return sendError(res, ErrorCodes.BOOKING_FETCH_ERROR, 500);
@@ -388,10 +390,7 @@ export const getBookingById = async (req: Request, res: Response) => {
       source: "database",
     };
 
-    res.json({
-      success: true,
-      data: booking,
-    });
+    return sendSuccess(res, { booking }, ErrorCodes.BOOKING_FETCH_SUCCESS, 200);
   } catch (error: any) {
     console.error("Ошибка при получении бронирования:", error.message);
     return sendError(res, ErrorCodes.BOOKING_FETCH_ERROR, 500);
@@ -508,15 +507,17 @@ export const getPassengerActiveTrips = async (req: Request, res: Response) => {
       })
       .filter((trip) => trip !== null);
 
-    res.json({
-      success: true,
-      data: trips,
-      meta: {
+    return sendSuccess(
+      res,
+      { trips },
+      ErrorCodes.ACTIVE_TRIPS_FETCH_SUCCESS,
+      200,
+      {
         total: trips.length,
         role: "passenger",
         status: "active",
       },
-    });
+    );
   } catch (error: any) {
     console.error(
       "Ошибка получения активных поездок пассажира:",

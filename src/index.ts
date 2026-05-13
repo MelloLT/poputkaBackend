@@ -44,7 +44,11 @@ export const io = new Server(server, {
 app.use(express.json());
 app.use(
   cors({
-    origin: ["https://pop-utka.uz", "http://localhost:5173"],
+    origin: [
+      "https://pop-utka.uz",
+      "http://localhost:5173",
+      "http://localhost:5174",
+    ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "Cookie"],

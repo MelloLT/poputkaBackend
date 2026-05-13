@@ -50,16 +50,10 @@ export const getDriverBookings = async (req: Request, res: Response) => {
       order: [["createdAt", "DESC"]],
     });
 
-    res.json({
-      success: true,
-      data: bookings,
-    });
+    return sendSuccess(res, { bookings }, ErrorCodes.BOOKING_FETCH_SUCCESS);
   } catch (error) {
     console.error("Ошибка получения бронирований:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка при получении бронирований",
-    });
+    return sendError(res, ErrorCodes.BOOKING_FETCH_ERROR, 500);
   }
 };
 
@@ -203,7 +197,6 @@ export const rejectBooking = async (req: Request, res: Response) => {
   }
 };
 
-
 export const getDriverTripHistory = async (req: Request, res: Response) => {
   try {
     const driverId = req.user!.id;
@@ -251,20 +244,10 @@ export const getDriverTripHistory = async (req: Request, res: Response) => {
 
     console.log("Найдено поездок:", trips.length);
 
-    res.json({
-      success: true,
-      data: trips,
-      meta: {
-        total: trips.length,
-        role: "driver",
-        status: status,
-      },
-    });
+    return sendSuccess(res, { trips }, ErrorCodes.TRIPS_HISTORY_FETCH_SUCCESS);
   } catch (error: any) {
     console.error("Ошибка получения истории поездок водителя:", error.message);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при получении истории поездок",
-    });
+
+    return sendError(res, ErrorCodes.TRIPS_HISTORY_FETCH_ERROR, 500);
   }
 };

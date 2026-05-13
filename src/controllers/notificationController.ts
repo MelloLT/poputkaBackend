@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
 import User from "../models/User";
+import { ErrorCodes } from "../utils/errorCodes";
+import { sendError, sendSuccess } from "../utils/responseHelper";
 
 export const getNotifications = async (req: Request, res: Response) => {
   try {
@@ -7,10 +9,7 @@ export const getNotifications = async (req: Request, res: Response) => {
     const user = await User.findByPk(userId);
 
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "Пользователь не найден",
-      });
+      return sendError(res, ErrorCodes.USER_NOT_FOUND, 404);
     }
 
     // Автоматически удаляем старые уведомления (>30 дней)
@@ -25,7 +24,7 @@ export const getNotifications = async (req: Request, res: Response) => {
     console.log(`Всего в БД: ${user.notifications?.length || 0}`);
     console.log(`После фильтрации (>30 дней): ${freshNotifications.length}`);
     console.log(
-      `- Непрочитанных: ${freshNotifications.filter((n) => !n.isRead).length}`,
+      `Непрочитанных: ${freshNotifications.filter((n) => !n.isRead).length}`,
     );
 
     // Логируем все уведомления для отладки
@@ -43,20 +42,18 @@ export const getNotifications = async (req: Request, res: Response) => {
       await user.update({ notifications: freshNotifications });
     }
 
-    res.json({
-      success: true,
-      data: freshNotifications,
-      meta: {
+    return sendSuccess(
+      res,
+      { freshNotifications },
+      ErrorCodes.NOTIFICATIONS_FETCH_SUCCESS,
+      200,
+      {
         total: freshNotifications.length,
         unread: freshNotifications.filter((n) => !n.isRead).length,
       },
-    });
+    );
   } catch (error: any) {
-    console.error("Ошибка получения уведомлений:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при получении уведомлений",
-    });
+    return sendError(res, ErrorCodes.NOTIFICATIONS_FETCH_ERROR, 500);
   }
 };
 
@@ -71,10 +68,7 @@ export const markAsRead = async (req: Request, res: Response) => {
 
     const user = await User.findByPk(userId);
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "Пользователь не найден",
-      });
+      return sendError(res, ErrorCodes.USER_NOT_FOUND, 404);
     }
 
     const notifications = user.notifications || [];
@@ -87,10 +81,8 @@ export const markAsRead = async (req: Request, res: Response) => {
 
     if (notificationIndex === -1) {
       console.log(`Уведомление ${notificationId} не найдено`);
-      return res.status(404).json({
-        success: false,
-        message: "Уведомление не найдено",
-      });
+
+      sendError(res, ErrorCodes.NOTIFICATION_NOT_FOUND, 404);
     }
 
     console.log(`Найдено уведомление по индексу: ${notificationIndex}`);
@@ -120,21 +112,19 @@ export const markAsRead = async (req: Request, res: Response) => {
 
     console.log(`Проверка после обновления: ${checkNotification?.isRead}`);
 
-    res.json({
-      success: true,
-      message: "Уведомление помечено как прочитанное",
-      data: {
+    return sendSuccess(
+      res,
+      {
         notification: updatedNotifications[notificationIndex],
         total: updatedNotifications.length,
         unread: updatedNotifications.filter((n) => !n.isRead).length,
       },
-    });
+      ErrorCodes.NOTIFICATIONS_MARKED_READ,
+      200,
+    );
   } catch (error: any) {
     console.error("Ошибка обновления уведомления:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при обновлении уведомления",
-    });
+    return sendError(res, ErrorCodes.NOTIFICATION_UPDATE_ERROR, 500);
   }
 };
 
@@ -144,10 +134,7 @@ export const markAllAsRead = async (req: Request, res: Response) => {
 
     const user = await User.findByPk(userId);
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "Пользователь не найден",
-      });
+      return sendError(res, ErrorCodes.USER_NOT_FOUND, 404);
     }
 
     const notifications = (user.notifications || []).map((notification) => ({
@@ -157,17 +144,16 @@ export const markAllAsRead = async (req: Request, res: Response) => {
 
     await user.update({ notifications });
 
-    res.json({
-      success: true,
-      message: "Все уведомления помечены как прочитанные",
-      data: notifications,
-    });
+    return sendSuccess(
+      res,
+      { notifications },
+      ErrorCodes.NOTIFICATIONS_MARKED_READ,
+      200,
+    );
   } catch (error: any) {
     console.error("Ошибка обновления уведомлений:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при обновлении уведомлений",
-    });
+
+    return sendError(res, ErrorCodes.NOTIFICATIONS_UPDATE_ERROR, 500);
   }
 };
 
@@ -178,10 +164,7 @@ export const deleteNotification = async (req: Request, res: Response) => {
 
     const user = await User.findByPk(userId);
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "Пользователь не найден",
-      });
+      return sendError(res, ErrorCodes.USER_NOT_FOUND, 404);
     }
 
     const notifications = (user.notifications || []).filter(
@@ -190,15 +173,9 @@ export const deleteNotification = async (req: Request, res: Response) => {
 
     await user.update({ notifications });
 
-    res.json({
-      success: true,
-      message: "Уведомление удалено",
-    });
+    return sendSuccess(res, null, ErrorCodes.NOTIFICATION_DELETED, 200);
   } catch (error: any) {
     console.error("Ошибка удаления уведомления:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при удалении уведомления",
-    });
+    return sendError(res, ErrorCodes.NOTIFICATION_DELETE_ERROR, 500);
   }
 };
