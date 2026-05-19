@@ -2,11 +2,17 @@ import { Request, Response } from "express";
 import { Op } from "sequelize";
 import User from "../models/User";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import Booking from "../models/Booking";
 import Trip from "../models/Trip";
 import { sendSuccess, sendError } from "../utils/responseHelper";
 import { ErrorCodes } from "../utils/errorCodes";
-import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+
+const generateToken = (userId: string, userRole: string) => {
+  return jwt.sign({ userId, userRole }, JWT_SECRET, { expiresIn: "7d" });
+};
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -225,23 +231,16 @@ export const login = async (req: Request, res: Response) => {
       return sendError(res, ErrorCodes.INVALID_LOGIN_PASSWORD, 400);
     }
 
-    // Потом удалить
-    const token = jwt.sign(
-      { userId: user.id, userRole: user.role },
-      process.env.JWT_SECRET || "your-secret-key",
-      { expiresIn: "7d" },
-    );
+    const token = generateToken(user.id, user.role);
 
     res.cookie("accessToken", token, {
       domain: ".pop-utka.uz",
       path: "/",
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: true,
       sameSite: "none",
-      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 дней
+      maxAge: 1000 * 60 * 60 * 24,
     });
-
-    // Потом удалить
 
     sendSuccess(
       res,
@@ -253,11 +252,10 @@ export const login = async (req: Request, res: Response) => {
           role: user.role,
           firstName: user.firstName,
           lastName: user.lastName,
-          phone: user.phone,
+          avatar: user.avatar,
         },
       },
       ErrorCodes.LOGIN_SUCCESS,
-      200,
     );
   } catch (error: any) {
     console.error("Ошибка при входе:", error.message);
@@ -514,5 +512,5 @@ export const logout = (req: Request, res: Response) => {
     domain: ".pop-utka.uz",
     path: "/",
   });
-  return sendSuccess(res, {}, ErrorCodes.LOGOUT_SUCCESS, 200);
+  return sendSuccess(res, {}, ErrorCodes.LOGOUT_SUCCESS);
 };

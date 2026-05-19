@@ -3,7 +3,7 @@ import sequelize from "../config/database";
 
 export interface OtpCodeAttributes {
   phone: string;
-  type: "login" | "register" | "payment";
+  type: "login" | "register" | "payment" | "recover" | "change_phone";
   codeHash: string;
   attempts: number;
   maxAttempts: number;
@@ -20,7 +20,7 @@ class OtpCode
   implements OtpCodeAttributes
 {
   public phone!: string;
-  public type!: "login" | "register" | "payment";
+  public type!: "login" | "register" | "payment" | "recover" | "change_phone";
   public codeHash!: string;
   public attempts!: number;
   public maxAttempts!: number;
@@ -37,7 +37,13 @@ OtpCode.init(
       primaryKey: true,
     },
     type: {
-      type: DataTypes.ENUM("login", "register", "payment"),
+      type: DataTypes.ENUM(
+        "login",
+        "register",
+        "payment",
+        "recover",
+        "change_phone",
+      ),
       primaryKey: true,
     },
     codeHash: {
