@@ -13,6 +13,7 @@ import bookingRoutes from "./routes/bookings";
 import uploadRoutes from "./routes/upload";
 import driverBookingsRoutes from "./routes/driverBookings";
 import chatRoutes from "./routes/chats";
+import passRoutes from "./routes/password"
 import reviewRoutes from "./routes/reviews";
 import otpRouter from "./routes/otp";
 import mapRoutes from "./routes/map";
@@ -104,6 +105,7 @@ app.use("/map", mapRoutes);
 app.use("/reviews", reviewRoutes);
 app.use("/notifications", notificationRoutes);
 app.use("/otp", otpRouter);
+app.use("/pass", passRoutes);
 
 app.use("/chats", chatRoutes);
 app.use("/admin", adminRoutes);

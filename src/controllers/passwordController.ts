@@ -108,9 +108,9 @@ export const verifyResetCode = async (req: Request, res: Response) => {
 // Сброс пароля
 export const resetPassword = async (req: Request, res: Response) => {
   try {
-    const { email, resetToken, newPassword } = req.body;
+    const { phone, newPassword } = req.body;
 
-    if (!email || !resetToken || !newPassword) {
+    if (!phone || !newPassword) {
       return res.status(400).json({
         success: false,
         message: "Все поля обязательны",
@@ -128,8 +128,7 @@ export const resetPassword = async (req: Request, res: Response) => {
 
     const user = await User.findOne({
       where: {
-        email,
-        verificationCode: resetToken,
+        phone,
       },
     });
 
@@ -145,8 +144,6 @@ export const resetPassword = async (req: Request, res: Response) => {
 
     await user.update({
       password: hashedPassword,
-      verificationCode: undefined,
-      verificationCodeExpires: undefined,
     });
 
     res.json({

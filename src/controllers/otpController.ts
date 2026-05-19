@@ -63,19 +63,19 @@ export const sendOtpService = async (req: Request, res: Response) => {
     // const coderes = await sendSmsCode(phone, code);
     return sendSuccess(res, { code: code }, ErrorCodes.OTP_SENT_SUCCESS, 200);
   } catch (e: any) {
+    console.log("OTP SEND ERROR", e);
+    console.log("OTP SEND ERROR MESSAGE", e?.message);
+    console.log("OTP SEND ERROR STACK", e?.stack);
+
     return sendError(res, ErrorCodes.OTP_SEND_ERROR, 500);
   }
 };
 export const verifyOtpService = async (req: Request, res: Response) => {
   try {
-    const { phone, type, inputCode, userId, userRole } = req.body;
+    const { phone, type, inputCode } = req.body;
 
     if (!phone || !type || !inputCode) {
       return sendError(res, ErrorCodes.OTP_REQUIRED_FIELDS, 400);
-    }
-
-    if (!userId || !userRole) {
-      return sendError(res, ErrorCodes.OTP_USERID_REQUIRED, 400);
     }
 
     const otp = await OtpCode.findOne({ where: { phone, type } });
@@ -107,17 +107,6 @@ export const verifyOtpService = async (req: Request, res: Response) => {
     }
 
     await otp.destroy();
-
-    const token = generateToken(userId, userRole);
-
-    res.cookie("accessToken", token, {
-      domain: ".pop-utka.uz",
-      path: "/",
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-      maxAge: 1000 * 60 * 60 * 24,
-    });
 
     return sendSuccess(res, null, ErrorCodes.OTP_VERIFIED_SUCCESS, 200);
   } catch (e: any) {
