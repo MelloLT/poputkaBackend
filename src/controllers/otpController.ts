@@ -16,7 +16,7 @@ export const sendSmsCode = async (phone: string, code: string) => {
         password: "q7tDuogeunJW9M7474v4",
         data: JSON.stringify([
           {
-            phone: "998901148203",
+            phone: phone,
             text: `PopUtka kod avtorizacii na saite: ${code}`,
           },
         ]),
@@ -60,8 +60,13 @@ export const sendOtpService = async (req: Request, res: Response) => {
       expiresAt: new Date(Date.now() + 5 * 60 * 1000),
       maxAttempts: 2,
     });
-    // const coderes = await sendSmsCode(phone, code);
-    return sendSuccess(res, { code: code }, ErrorCodes.OTP_SENT_SUCCESS, 200);
+    const coderes = await sendSmsCode(phone, code);
+    return sendSuccess(
+      res,
+      { code: code, res: coderes },
+      ErrorCodes.OTP_SENT_SUCCESS,
+      200,
+    );
   } catch (e: any) {
     console.log("OTP SEND ERROR", e);
     console.log("OTP SEND ERROR MESSAGE", e?.message);
