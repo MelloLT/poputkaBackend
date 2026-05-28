@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import User from "../models/User";
 import crypto from "crypto";
+import { sendSuccess, sendError } from "../utils/responseHelper";
+import { ErrorCodes } from "../utils/errorCodes";
 
 const generateVerificationCode = () => {
   return crypto.randomInt(100000, 999999).toString();
@@ -29,20 +31,18 @@ export const sendVerificationCode = async (req: Request, res: Response) => {
     console.log(`Код подтверждения для ${user.email}: ${verificationCode}`);
     console.log(`Код действителен до: ${expirationTime}`);
 
-    res.json({
-      success: true,
-      message: "Код подтверждения отправлен",
-      data: {
+    return sendSuccess(
+      res,
+      {
         code: verificationCode,
         expires: expirationTime,
       },
-    });
+      ErrorCodes.VERIFICATION_CODE_SENT,
+      200,
+    );
   } catch (error) {
     console.error("Ошибка отправки кода:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка при отправке кода",
-    });
+    return sendError(res, ErrorCodes.VERIFICATION_CODE_SEND_ERROR, 500);
   }
 };
 
@@ -87,10 +87,9 @@ export const verifyCode = async (req: Request, res: Response) => {
       verificationCodeExpires: undefined,
     });
 
-    res.json({
-      success: true,
-      message: "Email успешно подтвержден!",
-      data: {
+    return sendSuccess(
+      res,
+      {
         user: {
           id: user.id,
           username: user.username,
@@ -100,13 +99,12 @@ export const verifyCode = async (req: Request, res: Response) => {
           phoneVerified: user.phoneVerified,
         },
       },
-    });
+      ErrorCodes.EMAIL_VERIFIED_SUCCESS,
+      200,
+    );
   } catch (error) {
     console.error("Ошибка верификации:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка при верификации",
-    });
+    return sendError(res, ErrorCodes.EMAIL_VERIFICATION_ERROR, 500);
   }
 };
 
@@ -126,22 +124,20 @@ export const verifyPhone = async (req: Request, res: Response) => {
       phoneVerified: true,
     });
 
-    res.json({
-      success: true,
-      message: "Телефон успешно подтвержден",
-      data: {
+    return sendSuccess(
+      res,
+      {
         user: {
           id: user.id,
           phone: user.phone,
           phoneVerified: user.phoneVerified,
         },
       },
-    });
+      ErrorCodes.PHONE_VERIFIED_SUCCESS,
+      200,
+    );
   } catch (error: any) {
     console.error("Ошибка верификации телефона:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка при верификации телефона",
-    });
+    return sendError(res, ErrorCodes.PHONE_VERIFICATION_ERROR, 500);
   }
 };

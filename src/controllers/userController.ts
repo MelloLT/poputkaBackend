@@ -8,6 +8,8 @@ import {
   UpdateProfileInput,
 } from "../utils/validationSchemas";
 import { ZodError } from "zod";
+import { sendSuccess, sendError } from "../utils/responseHelper";
+import { ErrorCodes } from "../utils/errorCodes";
 
 // Получить всех пользователей
 export const getUsers = async (req: Request, res: Response) => {
@@ -27,20 +29,13 @@ export const getUsers = async (req: Request, res: Response) => {
       order: [["createdAt", "DESC"]],
     });
 
-    res.json({
-      success: true,
-      data: users,
-      meta: {
-        total: users.length,
-        role: role || "all",
-      },
+    return sendSuccess(res, users, ErrorCodes.USERS_FETCH_SUCCESS, 200, {
+      total: users.length,
+      role: role || "all",
     });
   } catch (error) {
     console.error("Ошибка при получении пользователей:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при получении пользователей",
-    });
+    return sendError(res, ErrorCodes.USERS_FETCH_ERROR, 500);
   }
 };
 
@@ -104,10 +99,9 @@ export const updateCar = async (req: Request, res: Response) => {
     // Получаем обновленного пользователя
     const updatedUser = await User.findByPk(userId);
 
-    res.json({
-      success: true,
-      message: "Данные автомобиля обновлены",
-      data: {
+    return sendSuccess(
+      res,
+      {
         car: updatedCar,
         user: {
           id: updatedUser!.id,
@@ -116,13 +110,12 @@ export const updateCar = async (req: Request, res: Response) => {
           car: updatedUser!.car,
         },
       },
-    });
+      ErrorCodes.CAR_DATA_UPDATED,
+      200,
+    );
   } catch (error: any) {
     console.error("Ошибка обновления автомобиля:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при обновлении автомобиля",
-    });
+    return sendError(res, ErrorCodes.CAR_UPDATE_ERROR, 500);
   }
 };
 
@@ -220,7 +213,6 @@ export const getUserById = async (req: Request, res: Response) => {
         availableSeats: trip.availableSeats,
         status: trip.status,
         description: trip.description,
-        instantBooking: trip.instantBooking,
         maxTwoBackSeats: trip.maxTwoBackSeats,
         tripInfo: trip.tripInfo,
         createdAt: trip.createdAt,
@@ -293,7 +285,6 @@ export const getUserById = async (req: Request, res: Response) => {
             availableSeats: booking.trip.availableSeats,
             status: booking.trip.status,
             description: booking.trip.description,
-            instantBooking: booking.trip.instantBooking,
             maxTwoBackSeats: booking.trip.maxTwoBackSeats,
             tripInfo: booking.trip.tripInfo,
             createdAt: booking.trip.createdAt,
@@ -377,16 +368,10 @@ export const getUserById = async (req: Request, res: Response) => {
       userData.detailedRatings = detailedRatings;
     }
 
-    res.json({
-      success: true,
-      data: userData,
-    });
+    return sendSuccess(res, userData, ErrorCodes.USER_FETCH_SUCCESS, 200);
   } catch (error) {
     console.error("Ошибка при получении пользователя:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при получении пользователя",
-    });
+    return sendError(res, ErrorCodes.USER_FETCH_ERROR, 500);
   }
 };
 
@@ -401,19 +386,12 @@ export const getDrivers = async (req: Request, res: Response) => {
       order: [["rating", "DESC"]],
     });
 
-    res.json({
-      success: true,
-      data: drivers,
-      meta: {
-        total: drivers.length,
-      },
+    return sendSuccess(res, drivers, ErrorCodes.DRIVERS_FETCH_SUCCESS, 200, {
+      total: drivers.length,
     });
   } catch (error) {
     console.error("Ошибка при получении водителей:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при получении водителей",
-    });
+    return sendError(res, ErrorCodes.DRIVERS_FETCH_ERROR, 500);
   }
 };
 
@@ -553,16 +531,14 @@ export const updateProfile = async (req: Request, res: Response) => {
       },
     });
 
-    res.json({
-      success: true,
-      message: "Профиль обновлен успешно",
-      data: { user: updatedUser },
-    });
+    return sendSuccess(
+      res,
+      { user: updatedUser },
+      ErrorCodes.PROFILE_UPDATED_SUCCESS,
+      200,
+    );
   } catch (error: any) {
     console.error("Ошибка обновления профиля:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при обновлении профиля",
-    });
+    return sendError(res, ErrorCodes.PROFILE_UPDATE_ERROR, 500);
   }
 };

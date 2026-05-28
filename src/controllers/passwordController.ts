@@ -3,6 +3,8 @@ import { Op } from "sequelize";
 import User from "../models/User";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
+import { ErrorCodes } from "../utils/errorCodes";
+import { sendError, sendSuccess } from "../utils/responseHelper";
 
 // Генерация случайного кода
 const generateResetCode = () => {
@@ -24,11 +26,14 @@ export const forgotPassword = async (req: Request, res: Response) => {
     const user = await User.findOne({ where: { email } });
 
     if (!user) {
-      return res.json({
-        success: true,
-        message:
-          "Если email зарегистрирован, вы получите код для сброса пароля",
-      });
+      if (!user) {
+        return sendSuccess(
+          res,
+          null,
+          ErrorCodes.PASSWORD_RESET_EMAIL_SENT,
+          200,
+        );
+      }
     }
 
     const resetCode = generateResetCode();
@@ -42,18 +47,16 @@ export const forgotPassword = async (req: Request, res: Response) => {
     // TODO: Отправить код на email (пока логируем)
     console.log(`Код для сброса пароля для ${email}: ${resetCode}`);
 
-    res.json({
-      success: true,
-      message: "Если email зарегистрирован, вы получите код для сброса пароля",
-      // В разработке можно вернуть код для тестирования
-      ...(process.env.NODE_ENV === "development" && { code: resetCode }),
-    });
+    return sendSuccess(
+      res,
+      null,
+      ErrorCodes.PASSWORD_RESET_EMAIL_SENT,
+      200,
+      process.env.NODE_ENV === "development" ? { code: resetCode } : undefined,
+    );
   } catch (error) {
     console.error("Ошибка запроса сброса пароля:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера",
-    });
+    return sendError(res, ErrorCodes.PASSWORD_RESET_ERROR, 500);
   }
 };
 
@@ -91,17 +94,15 @@ export const verifyResetCode = async (req: Request, res: Response) => {
       verificationCode: resetToken,
     });
 
-    res.json({
-      success: true,
-      message: "Код подтвержден",
-      data: { resetToken },
-    });
+    return sendSuccess(
+      res,
+      { resetToken },
+      ErrorCodes.VERIFICATION_CODE_SENT,
+      200,
+    );
   } catch (error) {
     console.error("Ошибка проверки кода:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера",
-    });
+    return sendError(res, ErrorCodes.PASSWORD_RESET_ERROR, 500);
   }
 };
 
@@ -146,15 +147,9 @@ export const resetPassword = async (req: Request, res: Response) => {
       password: hashedPassword,
     });
 
-    res.json({
-      success: true,
-      message: "Пароль успешно изменен",
-    });
+    return sendSuccess(res, null, ErrorCodes.PASSWORD_RESET_SUCCESS, 200);
   } catch (error) {
     console.error("Ошибка сброса пароля:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера",
-    });
+    return sendError(res, ErrorCodes.PASSWORD_RESET_ERROR, 500);
   }
 };

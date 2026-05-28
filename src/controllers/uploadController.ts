@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import fs from "fs";
 import path from "path";
 import User from "../models/User";
+import { sendSuccess, sendError } from "../utils/responseHelper";
+import { ErrorCodes } from "../utils/errorCodes";
 
 const uploadsDir = path.join(process.cwd(), "uploads");
 
@@ -19,17 +21,15 @@ export const uploadAvatar = async (req: Request, res: Response) => {
 
     await User.update({ avatar: fileUrl }, { where: { id: userId } });
 
-    res.json({
-      success: true,
-      message: "Аватар успешно загружен",
-      data: { avatar: fileUrl },
-    });
+    sendSuccess(
+      res,
+      { avatar: fileUrl },
+      ErrorCodes.AVATAR_UPLOADED_SUCCESS,
+      200,
+    );
   } catch (error) {
     console.error("Ошибка загрузки аватара:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка при загрузке аватара",
-    });
+    sendError(res, ErrorCodes.AVATAR_UPLOAD_ERROR, 500);
   }
 };
 
@@ -68,17 +68,15 @@ export const uploadCarPhotos = async (req: Request, res: Response) => {
       await User.update({ car: updatedCar }, { where: { id: userId } });
     }
 
-    res.json({
-      success: true,
-      message: "Фотографии автомобиля успешно загружены",
-      data: { carPhotos: uploadedFiles },
-    });
+    return sendSuccess(
+      res,
+      { carPhotos: uploadedFiles },
+      ErrorCodes.CAR_PHOTOS_UPLOADED_SUCCESS,
+      200,
+    );
   } catch (error) {
     console.error("Ошибка загрузки фото автомобиля:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка при загрузке фотографий",
-    });
+    return sendError(res, ErrorCodes.CAR_PHOTOS_UPLOAD_ERROR, 500);
   }
 };
 
@@ -127,22 +125,17 @@ export const deleteFileByUrl = async (req: Request, res: Response) => {
         }
       }
 
-      res.json({
-        success: true,
-        message: "Файл успешно удален",
-        data: { deletedUrl: fileUrl },
-      });
-    } else {
-      res.status(404).json({
-        success: false,
-        message: "Файл не найден",
-      });
+      return sendSuccess(
+        res,
+        { deletedUrl: fileUrl },
+        ErrorCodes.FILE_DELETED_SUCCESS,
+        200,
+      );
     }
+
+    return sendError(res, ErrorCodes.FILE_NOT_FOUND, 404);
   } catch (error) {
     console.error("Ошибка удаления файла:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка при удалении файла",
-    });
+    return sendError(res, ErrorCodes.FILE_DELETE_ERROR, 500);
   }
 };

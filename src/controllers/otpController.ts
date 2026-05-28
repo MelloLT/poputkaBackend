@@ -117,11 +117,6 @@ export const verifyOtpService = async (req: Request, res: Response) => {
   } catch (e: any) {
     console.error("OTP ERROR:", e);
 
-    // return res.status(500).json({
-    //   success: false,
-    //   message: "Ошибка проверки OTP",
-    //   error: e?.message || "Unknown error",
-    // });
     return sendError(res, ErrorCodes.OTP_VERIFY_ERROR, 500, {
       error: e?.message || "Unknown error",
     });

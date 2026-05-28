@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import User from "../models/User";
 import Trip from "../models/Trip";
 import Booking from "../models/Booking";
+import { ErrorCodes } from "../utils/errorCodes";
+import { sendError, sendSuccess } from "../utils/responseHelper";
 
 export const createReview = async (req: Request, res: Response) => {
   try {
@@ -184,9 +186,9 @@ export const getUserReviews = async (req: Request, res: Response) => {
 
     const isOwner = currentUserId === userId;
 
-    res.json({
-      success: true,
-      data: {
+    return sendSuccess(
+      res,
+      {
         user: {
           id: user.id,
           firstName: user.firstName,
@@ -205,12 +207,11 @@ export const getUserReviews = async (req: Request, res: Response) => {
           }),
         })),
       },
-    });
+      ErrorCodes.REVIEWS_FETCH_SUCCESS,
+      200,
+    );
   } catch (error: any) {
     console.error("Ошибка получения отзывов:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при получении отзывов",
-    });
+    return sendError(res, ErrorCodes.REVIEWS_FETCH_ERROR, 500);
   }
 };

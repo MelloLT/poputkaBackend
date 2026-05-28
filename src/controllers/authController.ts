@@ -50,7 +50,7 @@ export const register = async (req: Request, res: Response) => {
       });
     }
 
-    const validationErrors: string[] = [];
+    const validationErrors: Array<{ field: string; code: string }> = [];
 
     // Валидация email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -70,24 +70,24 @@ export const register = async (req: Request, res: Response) => {
       !emailRegex.test(email) ||
       !allowedDomains.includes(emailDomain?.toLowerCase())
     ) {
-      validationErrors.push(
-        "Адрес электронной почты недействительный. Попробуйте следующий формат: email@example.com.",
-      );
+      validationErrors.push({ field: "email", code: "INVALID_EMAIL_FORMAT" });
     }
 
     // Валидация phone
     const phoneRegex = /^\+?[0-9]{11,15}$/;
     if (!phoneRegex.test(phone.replace(/\s/g, ""))) {
-      validationErrors.push("Неверный формат номера телефона");
+      validationErrors.push({ field: "phone", code: "INVALID_PHONE_FORMAT" });
     }
 
     // Валидация password
     const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d._-]{10,18}$/;
     if (!passwordRegex.test(password)) {
-      validationErrors.push(
-        "Неверный формат пароля. Пароль должен содержать латинские буквы и цифры, точки и тире",
-      );
+      validationErrors.push({
+        field: "password",
+        code: "INVALID_PASSWORD_FORMAT",
+      });
     }
+
     // Валидация возраста
     const birthDateObj = new Date(birthDate);
     const today = new Date();
@@ -98,29 +98,31 @@ export const register = async (req: Request, res: Response) => {
     );
 
     if (birthDateObj > minAgeDate) {
-      validationErrors.push("Возраст должен быть не менее 18 лет");
+      validationErrors.push({
+        field: "birthDate",
+        code: "AGE_REQUIRED_MIN_18",
+      });
     }
 
     if (birthDateObj > today) {
-      validationErrors.push("Дата рождения не может быть в будущем");
+      validationErrors.push({ field: "birthDate", code: "BIRTH_DATE_FUTURE" });
     }
 
     // Валидация имени и фамилии
     const nameRegex = /^[A-Za-zА-Яа-яЁё\s]{1,20}$/;
     if (!nameRegex.test(firstName)) {
-      validationErrors.push(
-        "firstName должен состоять из букв и быть не длиннее 20 символов",
-      );
+      validationErrors.push({
+        field: "firstName",
+        code: "INVALID_NAME_FORMAT",
+      });
     }
     if (!nameRegex.test(lastName)) {
-      validationErrors.push(
-        "lastName должен состоять из букв и быть не длиннее 20 символов",
-      );
+      validationErrors.push({ field: "lastName", code: "INVALID_NAME_FORMAT" });
     }
 
     if (validationErrors.length > 0) {
-      return sendError(res, ErrorCodes.EMPTY_OR_UNPARSED_REQUEST_BODY, 422, {
-        validationErrors: validationErrors,
+      return sendError(res, ErrorCodes.VALIDATION_ERROR, 422, {
+        errors: validationErrors,
       });
     }
 
@@ -313,7 +315,6 @@ export const getMe = async (req: Request, res: Response) => {
         price: trip.price,
         availableSeats: trip.availableSeats,
         description: trip.description,
-        instantBooking: trip.instantBooking,
         maxTwoBackSeats: trip.maxTwoBackSeats,
         status: trip.status,
         tripInfo: trip.tripInfo,
