@@ -214,7 +214,6 @@ export const createTrip = async (req: Request, res: Response) => {
       price,
       availableSeats,
       description,
-      instantBooking = false,
       maxTwoBackSeats = false,
     } = req.body;
 

@@ -389,7 +389,6 @@ export const getMe = async (req: Request, res: Response) => {
             price: booking.trip.price,
             availableSeats: booking.trip.availableSeats,
             description: booking.trip.description,
-            instantBooking: booking.trip.instantBooking,
             maxTwoBackSeats: booking.trip.maxTwoBackSeats,
             status: booking.trip.status,
             tripInfo: booking.trip.tripInfo,

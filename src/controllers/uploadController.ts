@@ -10,10 +10,7 @@ const uploadsDir = path.join(process.cwd(), "uploads");
 export const uploadAvatar = async (req: Request, res: Response) => {
   try {
     if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: "Файл не был загружен",
-      });
+      return sendError(res, ErrorCodes.FILE_NOT_UPLOADED, 400);
     }
 
     const userId = req.user!.id;
@@ -21,7 +18,7 @@ export const uploadAvatar = async (req: Request, res: Response) => {
 
     await User.update({ avatar: fileUrl }, { where: { id: userId } });
 
-    sendSuccess(
+    return sendSuccess(
       res,
       { avatar: fileUrl },
       ErrorCodes.AVATAR_UPLOADED_SUCCESS,
@@ -29,17 +26,14 @@ export const uploadAvatar = async (req: Request, res: Response) => {
     );
   } catch (error) {
     console.error("Ошибка загрузки аватара:", error);
-    sendError(res, ErrorCodes.AVATAR_UPLOAD_ERROR, 500);
+    return sendError(res, ErrorCodes.AVATAR_UPLOAD_ERROR, 500);
   }
 };
 
 export const uploadCarPhotos = async (req: Request, res: Response) => {
   try {
     if (!req.files || (req.files as Express.Multer.File[]).length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Файлы не были загружены",
-      });
+      return sendError(res, ErrorCodes.FILES_NOT_UPLOADED, 400);
     }
 
     const userId = req.user!.id;
@@ -86,10 +80,7 @@ export const deleteFileByUrl = async (req: Request, res: Response) => {
     const userId = req.user!.id;
 
     if (!fileUrl) {
-      return res.status(400).json({
-        success: false,
-        message: "URL файла обязателен",
-      });
+      return sendError(res, ErrorCodes.FILE_URL_REQUIRED, 400);
     }
 
     const filename = fileUrl.split("/").pop();
@@ -100,10 +91,7 @@ export const deleteFileByUrl = async (req: Request, res: Response) => {
     } else if (fileUrl.includes("/cars/")) {
       folder = "cars";
     } else {
-      return res.status(400).json({
-        success: false,
-        message: "Недопустимый URL файла",
-      });
+      return sendError(res, ErrorCodes.INVALID_FILE_URL, 400);
     }
 
     const filePath = path.join(uploadsDir, folder, filename!);

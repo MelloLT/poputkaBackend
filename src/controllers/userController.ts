@@ -52,10 +52,7 @@ export const updateCar = async (req: Request, res: Response) => {
     const { model, color, year, licensePlate } = req.body;
 
     if (!req.body || Object.keys(req.body).length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Тело запроса пустое или не распарсено",
-      });
+      return sendError(res, ErrorCodes.EMPTY_OR_UNPARSED_REQUEST_BODY, 400);
     }
 
     const missingFields = [];
@@ -73,17 +70,11 @@ export const updateCar = async (req: Request, res: Response) => {
 
     const user = await User.findByPk(userId);
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "Пользователь не найден",
-      });
+      return sendError(res, ErrorCodes.USER_NOT_FOUND, 404);
     }
 
     if (user.role !== "driver") {
-      return res.status(403).json({
-        success: false,
-        message: "Только водители могут добавлять автомобиль",
-      });
+      return sendError(res, ErrorCodes.DRIVERS_ONLY_CAN_ADD_CAR, 403);
     }
 
     const updatedCar = {
@@ -138,10 +129,7 @@ export const getUserById = async (req: Request, res: Response) => {
     });
 
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "Пользователь не найден",
-      });
+      return sendError(res, ErrorCodes.USER_NOT_FOUND, 404);
     }
 
     const isOwner = currentUserId === id;
@@ -402,10 +390,7 @@ export const updateProfile = async (req: Request, res: Response) => {
     const user = await User.findByPk(userId);
 
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "Пользователь не найден",
-      });
+      return sendError(res, ErrorCodes.USER_NOT_FOUND, 404);
     }
 
     // Запрещенные поля
@@ -450,10 +435,8 @@ export const updateProfile = async (req: Request, res: Response) => {
           message: issue.message,
         }));
 
-        return res.status(400).json({
-          success: false,
-          message: "Ошибка валидации",
-          errors,
+        return sendError(res, ErrorCodes.VALIDATION_ERROR, 400, {
+          errors: errors,
         });
       }
       throw error;
@@ -485,10 +468,7 @@ export const updateProfile = async (req: Request, res: Response) => {
             where: { email: validatedData.email, id: { [Op.ne]: userId } },
           });
           if (existingUser) {
-            return res.status(400).json({
-              success: false,
-              message: "Этот email уже используется",
-            });
+            return sendError(res, ErrorCodes.EMAIL_ALREADY_IN_USE, 400);
           }
           updateData.email = validatedData.email;
           updateData.emailVerified = false;
@@ -501,9 +481,8 @@ export const updateProfile = async (req: Request, res: Response) => {
             where: { phone: validatedData.phone, id: { [Op.ne]: userId } },
           });
           if (existingUser) {
-            return res.status(400).json({
-              success: false,
-              message: "Этот телефон уже используется",
+            return sendError(res, ErrorCodes.PHONE_ALREADY_IN_USE, 400, {
+              phone: validatedData.phone,
             });
           }
           updateData.phone = validatedData.phone;
@@ -517,10 +496,7 @@ export const updateProfile = async (req: Request, res: Response) => {
 
     // Если нет данных для обновления
     if (Object.keys(updateData).length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Нет данных для обновления",
-      });
+      return sendError(res, ErrorCodes.NO_DATA_TO_UPDATE, 400);
     }
 
     await user.update(updateData);

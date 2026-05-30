@@ -20,33 +20,24 @@ export const createReview = async (req: Request, res: Response) => {
       !politeness ||
       !text
     ) {
-      return res.status(400).json({
-        success: false,
-        message: "Все поля обязательны",
-      });
+      return sendError(res, ErrorCodes.REVIEW_FIELDS_REQUIRED, 400);
     }
 
     // Проверка рейтингов (от 1 до 5)
     const ratings = [driving, cleanliness, politeness];
     for (const rating of ratings) {
       if (rating < 1 || rating > 5) {
-        return res.status(400).json({
-          success: false,
-          message: "Рейтинг должен быть от 1 до 5",
-        });
+        return sendError(res, ErrorCodes.REVIEW_RATING_INVALID, 400);
       }
     }
 
-    //  средняя оценка отзыва
+    // средняя оценка отзыва
     const averageRating = (driving + cleanliness + politeness) / 3;
 
     // проверка поездка завершена
     const trip = await Trip.findByPk(tripId);
     if (!trip || trip.status !== "completed") {
-      return res.status(403).json({
-        success: false,
-        message: "Отзыв можно оставить только после завершения поездки",
-      });
+      return sendError(res, ErrorCodes.REVIEW_NOT_ALLOWED, 403);
     }
 
     let isParticipant = false;
@@ -75,10 +66,7 @@ export const createReview = async (req: Request, res: Response) => {
     }
 
     if (!isParticipant) {
-      return res.status(403).json({
-        success: false,
-        message: "Вы можете оставить отзыв только участникам поездки",
-      });
+      return sendError(res, ErrorCodes.REVIEW_NOT_ALLOWED, 403);
     }
 
     // Проверка на повторный отзыв
@@ -88,10 +76,7 @@ export const createReview = async (req: Request, res: Response) => {
     );
 
     if (existingReview) {
-      return res.status(400).json({
-        success: false,
-        message: "Вы уже оставляли отзыв за эту поездку",
-      });
+      return sendError(res, ErrorCodes.REVIEW_ALREADY_EXISTS, 400);
     }
 
     const author = await User.findByPk(authorId);
@@ -118,23 +103,21 @@ export const createReview = async (req: Request, res: Response) => {
 
     await targetUser!.update({
       reviews: updatedReviews,
-      rating: parseFloat(newAverageRating.toFixed(1)), // общий рейтинг
+      rating: parseFloat(newAverageRating.toFixed(1)),
     });
 
-    res.status(201).json({
-      success: true,
-      message: "Отзыв добавлен успешно",
-      data: {
+    return sendSuccess(
+      res,
+      {
         review: newReview,
         newRating: newAverageRating,
       },
-    });
+      ErrorCodes.REVIEW_ADDED_SUCCESS,
+      201,
+    );
   } catch (error: any) {
     console.error("Ошибка создания отзыва:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при создании отзыва",
-    });
+    return sendError(res, ErrorCodes.REVIEW_CREATE_ERROR, 500);
   }
 };
 
@@ -148,10 +131,7 @@ export const getUserReviews = async (req: Request, res: Response) => {
     });
 
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "Пользователь не найден",
-      });
+      return sendError(res, ErrorCodes.USER_NOT_FOUND, 404);
     }
 
     const reviews = user.reviews || [];
@@ -166,7 +146,6 @@ export const getUserReviews = async (req: Request, res: Response) => {
 
     const count = reviews.length;
 
-    // рейтинги от лица водителя
     const detailedRatings =
       count > 0
         ? {
