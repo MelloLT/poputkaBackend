@@ -12,10 +12,10 @@ export const sendSmsCode = async (
   code: string,
   type: string,
 ) => {
-  const messages = {
+  const messages: Record<string, string> = {
     register: `Pop-utka.uz: Avtorizatsiya tasdiqlash kodi — ${code}. Kodni hech kimga bermang.`,
     recover: `Pop-utka.uz: Parolni tiklash kodi — ${code}. Agar bu siz bo‘lmasangiz, xabarni e’tiborsiz qoldiring.`,
-    "change_phone": `Pop-utka.uz: Telefon raqamingizni o'zgartirish kodi — ${code}. Kodni hech kimga bermang.`
+    change_phone: `Pop-utka.uz: Telefon raqamingizni o'zgartirish kodi — ${code}. Kodni hech kimga bermang.`,
   };
   try {
     const response = await axios.post(
@@ -26,7 +26,7 @@ export const sendSmsCode = async (
         data: JSON.stringify([
           {
             phone: phone,
-            text: `PopUtka kod avtorizacii na saite: ${code}`,
+            text: messages[type],
           },
         ]),
       }),
@@ -51,11 +51,11 @@ export const sendOtpService = async (req: Request, res: Response) => {
     const { phone, type } = req.body;
 
     if (!phone) {
-      return sendError(res, ErrorCodes.PHONE_REQUIRED, 400);
+      return res.status(400).json({ message: "Phone обязателен" });
     }
 
     if (!type) {
-      return sendError(res, ErrorCodes.TYPE_REQUIRED, 400);
+      return res.status(400).json({ message: "Type обязателен" });
     }
 
     const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -126,6 +126,11 @@ export const verifyOtpService = async (req: Request, res: Response) => {
   } catch (e: any) {
     console.error("OTP ERROR:", e);
 
+    // return res.status(500).json({
+    //   success: false,
+    //   message: "Ошибка проверки OTP",
+    //   error: e?.message || "Unknown error",
+    // });
     return sendError(res, ErrorCodes.OTP_VERIFY_ERROR, 500, {
       error: e?.message || "Unknown error",
     });
