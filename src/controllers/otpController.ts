@@ -51,11 +51,11 @@ export const sendOtpService = async (req: Request, res: Response) => {
     const { phone, type } = req.body;
 
     if (!phone) {
-      return res.status(400).json({ message: "Phone обязателен" });
+      return sendError(res, ErrorCodes.PHONE_REQUIRED, 400);
     }
 
     if (!type) {
-      return res.status(400).json({ message: "Type обязателен" });
+      return sendError(res, ErrorCodes.TYPE_REQUIRED, 400);
     }
 
     const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -126,11 +126,6 @@ export const verifyOtpService = async (req: Request, res: Response) => {
   } catch (e: any) {
     console.error("OTP ERROR:", e);
 
-    // return res.status(500).json({
-    //   success: false,
-    //   message: "Ошибка проверки OTP",
-    //   error: e?.message || "Unknown error",
-    // });
     return sendError(res, ErrorCodes.OTP_VERIFY_ERROR, 500, {
       error: e?.message || "Unknown error",
     });
