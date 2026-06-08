@@ -1,5 +1,7 @@
 import express from "express";
 import { getAllCitiesFormatted, getAllCityKeys } from "../utils/cityValidator";
+import { sendSuccess, sendError } from "../utils/responseHelper";
+import { ErrorCodes } from "../utils/errorCodes";
 
 const router = express.Router();
 
@@ -8,19 +10,12 @@ router.get("/", (req, res) => {
   try {
     const cities = getAllCitiesFormatted();
 
-    res.json({
-      success: true,
-      data: cities,
-      meta: {
-        total: cities.length,
-      },
+    return sendSuccess(res, cities, ErrorCodes.CITIES_FETCH_SUCCESS, 200, {
+      total: cities.length,
     });
   } catch (error: any) {
     console.error("Ошибка получения городов:", error.message);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка при получении списка городов",
-    });
+    return sendError(res, ErrorCodes.CITIES_FETCH_ERROR, 500);
   }
 });
 
@@ -29,16 +24,15 @@ router.get("/keys", (req, res) => {
   try {
     const cityKeys = getAllCityKeys();
 
-    res.json({
-      success: true,
-      data: cityKeys,
-    });
+    return sendSuccess(
+      res,
+      cityKeys,
+      ErrorCodes.CITIES_KEYS_FETCH_SUCCESS,
+      200,
+    );
   } catch (error: any) {
     console.error("Ошибка получения ключей городов:", error.message);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка при получении ключей городов",
-    });
+    return sendError(res, ErrorCodes.CITIES_KEYS_FETCH_ERROR, 500);
   }
 });
 
@@ -55,16 +49,10 @@ router.get("/:cityKey", (req, res) => {
       });
     }
 
-    res.json({
-      success: true,
-      data: cityInfo,
-    });
+    return sendSuccess(res, cityInfo, ErrorCodes.CITY_INFO_FETCH_SUCCESS, 200);
   } catch (error: any) {
     console.error("Ошибка получения города:", error.message);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка при получении информации о городе",
-    });
+    return sendError(res, ErrorCodes.CITY_INFO_FETCH_ERROR, 500);
   }
 });
 

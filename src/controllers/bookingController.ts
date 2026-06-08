@@ -85,16 +85,6 @@ export const createBooking = async (req: Request, res: Response) => {
     // Определяем статус брони
     let bookingStatus: "pending" | "confirmed" = "pending";
 
-    // Если instantBooking = true, то сразу confirmed
-    if (trip.instantBooking) {
-      bookingStatus = "confirmed";
-
-      // Сразу уменьшаем места
-      await trip.update({
-        availableSeats: trip.availableSeats - seats,
-      });
-    }
-
     const booking = await Booking.create({
       passengerId: req.user!.id,
       tripId,
@@ -125,81 +115,42 @@ export const createBooking = async (req: Request, res: Response) => {
         },
       ],
     });
+    await addNotification(
+      passengerId,
+      "booking_request",
+      ErrorCodes.NOTIFICATION_BOOKING_REQUEST_TO_PASSENGER,
+      {
+        seats: seats,
+        from: trip.from.cityKey,
+        to: trip.to.cityKey,
+      },
+      booking.id,
+      trip.id,
+    );
 
-    if (trip.instantBooking) {
-      await addNotification(
-        passengerId,
-        "booking_confirmed",
-        ErrorCodes.NOTIFICATION_BOOKING_CONFIRMED_AUTO_TO_PASSENGER,
-        {
-          seats: seats,
-          from: trip.from.cityKey,
-          to: trip.to.cityKey,
-        },
-        booking.id,
-        trip.id,
-      );
-    } else {
-      await addNotification(
-        passengerId,
-        "booking_request",
-        ErrorCodes.NOTIFICATION_BOOKING_REQUEST_TO_PASSENGER,
-        {
-          seats: seats,
-          from: trip.from.cityKey,
-          to: trip.to.cityKey,
-        },
-        booking.id,
-        trip.id,
-      );
-    }
+    // Уведомление водителю
+    await addNotification(
+      trip.driverId,
+      "booking_request",
+      ErrorCodes.NOTIFICATION_BOOKING_REQUEST_TO_DRIVER,
+      {
+        passengerName: `${req.user!.firstName} ${req.user!.lastName}`,
+        seats: seats,
+        from: trip.from.cityKey,
+        to: trip.to.cityKey,
+      },
+      booking.id,
+      trip.id,
+    );
 
-    // Добавляем уведомление водителю
-    if (!trip.instantBooking) {
-      await addNotification(
-        trip.driverId,
-        "booking_request",
-        ErrorCodes.NOTIFICATION_BOOKING_REQUEST_TO_DRIVER,
-        {
-          passengerName: `${req.user!.firstName} ${req.user!.lastName}`,
-          seats: seats,
-          from: trip.from.cityKey,
-          to: trip.to.cityKey,
-        },
-        booking.id,
-        trip.id,
-      );
-    } else {
-      await addNotification(
-        trip.driverId,
-        "booking_confirmed",
-        ErrorCodes.NOTIFICATION_BOOKING_CONFIRMED_AUTO_TO_DRIVER,
-        {
-          seats: seats,
-          passengerName: `${req.user!.firstName} ${req.user!.lastName}`,
-        },
-        booking.id,
-        trip.id,
-      );
-    }
-
-    if (trip.instantBooking) {
-      return sendSuccess(
-        res,
-        { booking: bookingWithDetails },
-        ErrorCodes.BOOKING_CREATED,
-        201,
-        { instantBooking: true },
-      );
-    } else {
-      return sendSuccess(
-        res,
-        { booking: bookingWithDetails },
-        ErrorCodes.BOOKING_PENDING,
-        201,
-        { requiresConfirmation: true },
-      );
-    }
+    // Ответ
+    return sendSuccess(
+      res,
+      { booking: bookingWithDetails },
+      ErrorCodes.BOOKING_PENDING,
+      201,
+      { requiresConfirmation: true },
+    );
   } catch (error: any) {
     console.error("Ошибка при создании брони:", error.message);
     return sendError(res, ErrorCodes.BOOKING_CREATE_ERROR, 500);
@@ -325,7 +276,6 @@ export const getBookingById = async (req: Request, res: Response) => {
               price: booking.trip.price,
               availableSeats: booking.trip.availableSeats,
               description: booking.trip.description,
-              instantBooking: booking.trip.instantBooking,
               maxTwoBackSeats: booking.trip.maxTwoBackSeats,
               status: booking.trip.status,
               tripInfo: booking.trip.tripInfo,

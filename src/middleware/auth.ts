@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import User from "../models/User";
+import { sendError } from "../utils/responseHelper";
+import { ErrorCodes } from "../utils/errorCodes";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
@@ -15,7 +17,7 @@ declare global {
 export const authMiddleware = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     // Проверяем token из cookies или заголовка Authorization
@@ -26,10 +28,7 @@ export const authMiddleware = async (
     }
 
     if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: "Токен не предоставлен",
-      });
+      return sendError(res, ErrorCodes.TOKEN_NOT_PROVIDED, 401);
     }
 
     const payload = jwt.verify(token, JWT_SECRET) as {
@@ -44,29 +43,20 @@ export const authMiddleware = async (
     });
 
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: "Пользователь не найден",
-      });
+      return sendError(res, ErrorCodes.USER_NOT_FOUND, 401);
     }
 
-    // Проверка на бан
+    // Проверка на бан (user точно не null на этом этапе)
     if (user.isBanned) {
       const now = new Date();
       if (user.bannedUntil && user.bannedUntil > now) {
-        return res.status(403).json({
-          success: false,
-          message: `Ваш аккаунт заблокирован. Причина: ${
-            user.banReason || "нарушение правил"
-          }. Блокировка до: ${user.bannedUntil.toLocaleDateString()}`,
+        return sendError(res, ErrorCodes.USER_BANNED_TEMPORARY, 403, {
+          bannedUntil: user.bannedUntil.toISOString(),
+          reason: user.banReason || undefined,
         });
       } else if (!user.bannedUntil) {
-        // Перманентный бан
-        return res.status(403).json({
-          success: false,
-          message: `Ваш аккаунт заблокирован навсегда. Причина: ${
-            user.banReason || "нарушение правил"
-          }`,
+        return sendError(res, ErrorCodes.USER_BANNED_PERMANENT, 403, {
+          reason: user.banReason || undefined,
         });
       }
     }
@@ -75,26 +65,20 @@ export const authMiddleware = async (
     next();
   } catch (error) {
     console.error("Ошибка аутентификации:", error);
-    return res.status(401).json({
-      success: false,
-      message: "Неверный или просроченный токен",
-    });
+    return sendError(res, ErrorCodes.INVALID_OR_EXPIRED_TOKEN, 401);
   }
 };
 
 export const requireRole = (role: string) => {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: "Требуется авторизация",
-      });
+      return sendError(res, ErrorCodes.AUTHORIZATION_REQUIRED, 401);
     }
 
     if (req.user.role !== role) {
-      return res.status(403).json({
-        success: false,
-        message: `Требуется роль: ${role}`,
+      return sendError(res, ErrorCodes.ROLE_REQUIRED, 403, {
+        requiredRole: role,
+        currentRole: req.user.role,
       });
     }
 
@@ -105,20 +89,14 @@ export const requireRole = (role: string) => {
 export const requireAdmin = (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   if (!req.user) {
-    return res.status(401).json({
-      success: false,
-      message: "Требуется авторизация",
-    });
+    return sendError(res, ErrorCodes.AUTHORIZATION_REQUIRED, 401);
   }
 
   if (req.user.role !== "admin") {
-    return res.status(403).json({
-      success: false,
-      message: "Требуются права администратора",
-    });
+    return sendError(res, ErrorCodes.ADMIN_RIGHTS_REQUIRED, 403);
   }
 
   next();

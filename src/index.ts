@@ -5,7 +5,6 @@ import * as dotenv from "dotenv";
 import sequelize from "./config/database";
 import authRoutes from "./routes/auth";
 import path from "path";
-import verificationRoutes from "./routes/verification";
 import Message from "./models/Message";
 import tripRoutes from "./routes/trips";
 import userRoutes from "./routes/users";
@@ -13,7 +12,6 @@ import bookingRoutes from "./routes/bookings";
 import uploadRoutes from "./routes/upload";
 import driverBookingsRoutes from "./routes/driverBookings";
 import chatRoutes from "./routes/chats";
-import passRoutes from "./routes/password"
 import reviewRoutes from "./routes/reviews";
 import otpRouter from "./routes/otp";
 import mapRoutes from "./routes/map";
@@ -27,6 +25,7 @@ import paymentRoutes from "./routes/payment";
 import { createServer } from "http";
 import adminRoutes from "./routes/admin";
 import citiesRoutes from "./routes/cities";
+import { sendSuccess } from "./utils/responseHelper";
 config();
 
 dotenv.config();
@@ -94,7 +93,6 @@ app.use(cookieParser());
 
 // Маршруты
 app.use("/auth", authRoutes);
-app.use("/verification", verificationRoutes);
 app.use("/trips", tripRoutes);
 app.use("/users", userRoutes);
 app.use("/bookings", bookingRoutes);
@@ -105,7 +103,6 @@ app.use("/map", mapRoutes);
 app.use("/reviews", reviewRoutes);
 app.use("/notifications", notificationRoutes);
 app.use("/otp", otpRouter);
-app.use("/pass", passRoutes);
 
 app.use("/chats", chatRoutes);
 app.use("/admin", adminRoutes);
@@ -113,15 +110,19 @@ app.use("/api/payment", paymentRoutes);
 
 // Базовые эндпоинты
 app.get("/", (req, res) => {
-  res.json({
-    message: "Бэкенд Poputka работает.",
-    endpoints: {
-      auth: "/auth",
-      trips: "/trips",
-      users: "/users",
-      verification: "/verification",
+  return sendSuccess(
+    res,
+    {
+      endpoints: {
+        auth: "/auth",
+        trips: "/trips",
+        users: "/users",
+        verification: "/verification",
+      },
     },
-  });
+    "API_INFO",
+    200,
+  );
 });
 
 // Health check

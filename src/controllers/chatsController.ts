@@ -41,7 +41,6 @@ export const getChats = async (req: any, res: any) => {
       order: [["createdAt", "DESC"]],
     });
 
-    // return res.json({ success: true, data: chats });
     return sendSuccess(res, { chats }, ErrorCodes.CHAT_FETCH_SUCCESS, 200);
   } catch (err: any) {
     console.error("Ошибка при получении чатов:", err.message);
@@ -84,10 +83,6 @@ export const getChatByID = async (req: Request, res: Response) => {
       return sendError(res, ErrorCodes.CHAT_NOT_FOUND, 404);
     }
 
-    // res.json({
-    //   success: true,
-    //   data: chat,
-    // });
     return sendSuccess(res, { chat }, ErrorCodes.CHAT_FETCH_SUCCESS, 200);
   } catch (error) {
     console.error("Ошибка при получении поездки:", error);

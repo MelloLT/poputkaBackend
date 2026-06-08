@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from "express";
 import Trip from "../models/Trip";
 import Booking from "../models/Booking";
 import User from "../models/User";
+import { sendError } from "../utils/responseHelper";
+import { ErrorCodes } from "../utils/errorCodes";
 
 declare global {
   namespace Express {
@@ -23,26 +25,17 @@ export const checkSelfBooking = async (
 
     const trip = await Trip.findByPk(tripId);
     if (!trip) {
-      return res.status(404).json({
-        success: false,
-        message: "Поездка не найдена",
-      });
+      return sendError(res, ErrorCodes.TRIP_NOT_FOUND, 404);
     }
 
     if (trip.driverId === userId) {
-      return res.status(400).json({
-        success: false,
-        message: "Вы не можете забронировать свою собственную поездку",
-      });
+      return sendError(res, ErrorCodes.CANNOT_BOOK_OWN_TRIP, 400);
     }
 
     next();
   } catch (error) {
     console.error("Ошибка проверки self-booking:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при проверке",
-    });
+    return sendError(res, ErrorCodes.VALIDATION_ERROR, 500);
   }
 };
 
@@ -57,26 +50,17 @@ export const checkTripActive = async (
     const trip = await Trip.findByPk(tripId);
 
     if (!trip) {
-      return res.status(404).json({
-        success: false,
-        message: "Поездка не найдена",
-      });
+      return sendError(res, ErrorCodes.TRIP_NOT_FOUND, 404);
     }
 
     if (trip.status !== "created" && trip.status !== "paid") {
-      return res.status(400).json({
-        success: false,
-        message: "Поездка неактивна или уже завершена",
-      });
+      return sendError(res, ErrorCodes.TRIP_NOT_ACTIVE, 400);
     }
 
     next();
   } catch (error) {
     console.error("Ошибка проверки активности поездки:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при проверке",
-    });
+    return sendError(res, ErrorCodes.VALIDATION_ERROR, 500);
   }
 };
 
@@ -94,27 +78,18 @@ export const checkFutureTrip = async (
       const now = new Date();
 
       if (isNaN(tripDateTime.getTime())) {
-        return res.status(400).json({
-          success: false,
-          message: "Неверный формат даты и времени",
-        });
+        return sendError(res, ErrorCodes.INVALID_DATE_FORMAT, 400);
       }
 
       if (tripDateTime <= now) {
-        return res.status(400).json({
-          success: false,
-          message: "Дата и время поездки должны быть в будущем",
-        });
+        return sendError(res, ErrorCodes.TRIP_DATETIME_FUTURE_REQUIRED, 400);
       }
     }
 
     next();
   } catch (error) {
     console.error("Ошибка проверки даты:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при проверке даты",
-    });
+    return sendError(res, ErrorCodes.VALIDATION_ERROR, 500);
   }
 };
 
@@ -129,19 +104,13 @@ export const checkSelfReview = async (
     const userId = req.user!.id;
 
     if (targetUserId === userId) {
-      return res.status(400).json({
-        success: false,
-        message: "Вы не можете оставить отзыв самому себе",
-      });
+      return sendError(res, ErrorCodes.CANNOT_REVIEW_SELF, 400);
     }
 
     next();
   } catch (error) {
     console.error("Ошибка проверки self-review:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при проверке",
-    });
+    return sendError(res, ErrorCodes.VALIDATION_ERROR, 500);
   }
 };
 
@@ -158,24 +127,18 @@ export const checkDuplicateReview = async (
     const targetUser = await User.findByPk(targetUserId);
     if (targetUser && targetUser.reviews) {
       const existingReview = targetUser.reviews.find(
-        (review) => review.authorId === userId && review.tripId === tripId,
+        (review: any) => review.authorId === userId && review.tripId === tripId,
       );
 
       if (existingReview) {
-        return res.status(400).json({
-          success: false,
-          message: "Вы уже оставляли отзыв за эту поездку",
-        });
+        return sendError(res, ErrorCodes.REVIEW_ALREADY_EXISTS, 400);
       }
     }
 
     next();
   } catch (error) {
     console.error("Ошибка проверки дубликата отзыва:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при проверке",
-    });
+    return sendError(res, ErrorCodes.VALIDATION_ERROR, 500);
   }
 };
 
@@ -190,19 +153,13 @@ export const checkProfileOwnership = async (
     const userId = req.user!.id;
 
     if (id !== userId && req.user!.role !== "admin") {
-      return res.status(403).json({
-        success: false,
-        message: "Вы можете редактировать только свой профиль",
-      });
+      return sendError(res, ErrorCodes.EDIT_ONLY_OWN_PROFILE, 403);
     }
 
     next();
   } catch (error) {
     console.error("Ошибка проверки владения профилем:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при проверке",
-    });
+    return sendError(res, ErrorCodes.VALIDATION_ERROR, 500);
   }
 };
 
@@ -225,18 +182,12 @@ export const checkMaxBookings = async (
     });
 
     if (existingBooking) {
-      return res.status(400).json({
-        success: false,
-        message: "Вы уже забронировали эту поездку",
-      });
+      return sendError(res, ErrorCodes.ALREADY_BOOKED, 400);
     }
 
     next();
   } catch (error) {
     console.error("Ошибка проверки броней:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при проверке",
-    });
+    return sendError(res, ErrorCodes.VALIDATION_ERROR, 500);
   }
 };

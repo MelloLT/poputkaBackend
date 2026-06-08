@@ -8,6 +8,8 @@ import {
   UpdateProfileInput,
 } from "../utils/validationSchemas";
 import { ZodError } from "zod";
+import { sendSuccess, sendError } from "../utils/responseHelper";
+import { ErrorCodes } from "../utils/errorCodes";
 
 // Получить всех пользователей
 export const getUsers = async (req: Request, res: Response) => {
@@ -27,20 +29,13 @@ export const getUsers = async (req: Request, res: Response) => {
       order: [["createdAt", "DESC"]],
     });
 
-    res.json({
-      success: true,
-      data: users,
-      meta: {
-        total: users.length,
-        role: role || "all",
-      },
+    return sendSuccess(res, users, ErrorCodes.USERS_FETCH_SUCCESS, 200, {
+      total: users.length,
+      role: role || "all",
     });
   } catch (error) {
     console.error("Ошибка при получении пользователей:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при получении пользователей",
-    });
+    return sendError(res, ErrorCodes.USERS_FETCH_ERROR, 500);
   }
 };
 
@@ -57,10 +52,7 @@ export const updateCar = async (req: Request, res: Response) => {
     const { model, color, year, licensePlate } = req.body;
 
     if (!req.body || Object.keys(req.body).length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Тело запроса пустое или не распарсено",
-      });
+      return sendError(res, ErrorCodes.EMPTY_OR_UNPARSED_REQUEST_BODY, 400);
     }
 
     const missingFields = [];
@@ -78,17 +70,11 @@ export const updateCar = async (req: Request, res: Response) => {
 
     const user = await User.findByPk(userId);
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "Пользователь не найден",
-      });
+      return sendError(res, ErrorCodes.USER_NOT_FOUND, 404);
     }
 
     if (user.role !== "driver") {
-      return res.status(403).json({
-        success: false,
-        message: "Только водители могут добавлять автомобиль",
-      });
+      return sendError(res, ErrorCodes.DRIVERS_ONLY_CAN_ADD_CAR, 403);
     }
 
     const updatedCar = {
@@ -104,10 +90,9 @@ export const updateCar = async (req: Request, res: Response) => {
     // Получаем обновленного пользователя
     const updatedUser = await User.findByPk(userId);
 
-    res.json({
-      success: true,
-      message: "Данные автомобиля обновлены",
-      data: {
+    return sendSuccess(
+      res,
+      {
         car: updatedCar,
         user: {
           id: updatedUser!.id,
@@ -116,13 +101,12 @@ export const updateCar = async (req: Request, res: Response) => {
           car: updatedUser!.car,
         },
       },
-    });
+      ErrorCodes.CAR_DATA_UPDATED,
+      200,
+    );
   } catch (error: any) {
     console.error("Ошибка обновления автомобиля:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при обновлении автомобиля",
-    });
+    return sendError(res, ErrorCodes.CAR_UPDATE_ERROR, 500);
   }
 };
 
@@ -145,10 +129,7 @@ export const getUserById = async (req: Request, res: Response) => {
     });
 
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "Пользователь не найден",
-      });
+      return sendError(res, ErrorCodes.USER_NOT_FOUND, 404);
     }
 
     const isOwner = currentUserId === id;
@@ -220,7 +201,6 @@ export const getUserById = async (req: Request, res: Response) => {
         availableSeats: trip.availableSeats,
         status: trip.status,
         description: trip.description,
-        instantBooking: trip.instantBooking,
         maxTwoBackSeats: trip.maxTwoBackSeats,
         tripInfo: trip.tripInfo,
         createdAt: trip.createdAt,
@@ -293,7 +273,6 @@ export const getUserById = async (req: Request, res: Response) => {
             availableSeats: booking.trip.availableSeats,
             status: booking.trip.status,
             description: booking.trip.description,
-            instantBooking: booking.trip.instantBooking,
             maxTwoBackSeats: booking.trip.maxTwoBackSeats,
             tripInfo: booking.trip.tripInfo,
             createdAt: booking.trip.createdAt,
@@ -377,16 +356,10 @@ export const getUserById = async (req: Request, res: Response) => {
       userData.detailedRatings = detailedRatings;
     }
 
-    res.json({
-      success: true,
-      data: userData,
-    });
+    return sendSuccess(res, userData, ErrorCodes.USER_FETCH_SUCCESS, 200);
   } catch (error) {
     console.error("Ошибка при получении пользователя:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при получении пользователя",
-    });
+    return sendError(res, ErrorCodes.USER_FETCH_ERROR, 500);
   }
 };
 
@@ -401,19 +374,12 @@ export const getDrivers = async (req: Request, res: Response) => {
       order: [["rating", "DESC"]],
     });
 
-    res.json({
-      success: true,
-      data: drivers,
-      meta: {
-        total: drivers.length,
-      },
+    return sendSuccess(res, drivers, ErrorCodes.DRIVERS_FETCH_SUCCESS, 200, {
+      total: drivers.length,
     });
   } catch (error) {
     console.error("Ошибка при получении водителей:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при получении водителей",
-    });
+    return sendError(res, ErrorCodes.DRIVERS_FETCH_ERROR, 500);
   }
 };
 
@@ -424,10 +390,7 @@ export const updateProfile = async (req: Request, res: Response) => {
     const user = await User.findByPk(userId);
 
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "Пользователь не найден",
-      });
+      return sendError(res, ErrorCodes.USER_NOT_FOUND, 404);
     }
 
     // Запрещенные поля
@@ -472,10 +435,8 @@ export const updateProfile = async (req: Request, res: Response) => {
           message: issue.message,
         }));
 
-        return res.status(400).json({
-          success: false,
-          message: "Ошибка валидации",
-          errors,
+        return sendError(res, ErrorCodes.VALIDATION_ERROR, 400, {
+          errors: errors,
         });
       }
       throw error;
@@ -507,10 +468,7 @@ export const updateProfile = async (req: Request, res: Response) => {
             where: { email: validatedData.email, id: { [Op.ne]: userId } },
           });
           if (existingUser) {
-            return res.status(400).json({
-              success: false,
-              message: "Этот email уже используется",
-            });
+            return sendError(res, ErrorCodes.EMAIL_ALREADY_IN_USE, 400);
           }
           updateData.email = validatedData.email;
           updateData.emailVerified = false;
@@ -523,9 +481,8 @@ export const updateProfile = async (req: Request, res: Response) => {
             where: { phone: validatedData.phone, id: { [Op.ne]: userId } },
           });
           if (existingUser) {
-            return res.status(400).json({
-              success: false,
-              message: "Этот телефон уже используется",
+            return sendError(res, ErrorCodes.PHONE_ALREADY_IN_USE, 400, {
+              phone: validatedData.phone,
             });
           }
           updateData.phone = validatedData.phone;
@@ -539,10 +496,7 @@ export const updateProfile = async (req: Request, res: Response) => {
 
     // Если нет данных для обновления
     if (Object.keys(updateData).length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Нет данных для обновления",
-      });
+      return sendError(res, ErrorCodes.NO_DATA_TO_UPDATE, 400);
     }
 
     await user.update(updateData);
@@ -553,16 +507,14 @@ export const updateProfile = async (req: Request, res: Response) => {
       },
     });
 
-    res.json({
-      success: true,
-      message: "Профиль обновлен успешно",
-      data: { user: updatedUser },
-    });
+    return sendSuccess(
+      res,
+      { user: updatedUser },
+      ErrorCodes.PROFILE_UPDATED_SUCCESS,
+      200,
+    );
   } catch (error: any) {
     console.error("Ошибка обновления профиля:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при обновлении профиля",
-    });
+    return sendError(res, ErrorCodes.PROFILE_UPDATE_ERROR, 500);
   }
 };

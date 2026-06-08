@@ -28,7 +28,6 @@ export const getTrips = async (req: Request, res: Response) => {
       timeTo,
       driverGender,
       sortBy = "earliest",
-      instantBookingOnly = false,
       verifiedOnly = false,
     } = req.query;
 
@@ -43,7 +42,6 @@ export const getTrips = async (req: Request, res: Response) => {
       timeTo,
       driverGender,
       sortBy,
-      instantBookingOnly,
       verifiedOnly,
     });
 
@@ -129,11 +127,6 @@ export const getTrips = async (req: Request, res: Response) => {
       };
     }
 
-    // Фильтр "Мгновенное бронирование"
-    if (instantBookingOnly === "true") {
-      whereClause.instantBooking = true;
-    }
-
     console.log("Условия поиска:", JSON.stringify(whereClause, null, 2));
 
     let order: any[] = [];
@@ -152,32 +145,25 @@ export const getTrips = async (req: Request, res: Response) => {
 
     console.log(`Найдено поездок: ${trips.length}`);
 
-    res.json({
-      success: true,
-      data: trips,
-      meta: {
-        total: trips.length,
-        filters: {
-          from,
-          to,
-          departureAt,
-          minPrice,
-          maxPrice,
-          seats,
-          timeFrom,
-          timeTo,
-          driverGender,
-          verifiedOnly: verifiedOnly === "true",
-          instantBookingOnly: instantBookingOnly === "true",
-          sortBy,
-        },
+    return sendSuccess(res, trips, ErrorCodes.TRIPS_FETCH_SUCCESS, 200, {
+      total: trips.length,
+      filters: {
+        from,
+        to,
+        departureAt,
+        minPrice,
+        maxPrice,
+        seats,
+        timeFrom,
+        timeTo,
+        driverGender,
+        verifiedOnly: verifiedOnly === "true",
+        sortBy,
       },
     });
   } catch (error) {
     console.error("Ошибка при поиске поездок:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при поиске поездок",
+    return sendError(res, ErrorCodes.TRIPS_SEARCH_ERROR, 500, {
       error: error instanceof Error ? error.message : "Unknown error",
     });
   }
@@ -207,22 +193,13 @@ export const getTripById = async (req: Request, res: Response) => {
     });
 
     if (!trip) {
-      return res.status(404).json({
-        success: false,
-        message: "Поездка не найдена",
-      });
+      return sendError(res, ErrorCodes.TRIP_NOT_FOUND, 404);
     }
 
-    res.json({
-      success: true,
-      data: trip,
-    });
+    return sendSuccess(res, trip, ErrorCodes.TRIP_FETCH_SUCCESS, 200);
   } catch (error) {
     console.error("Ошибка при получении поездки:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера",
-    });
+    return sendError(res, ErrorCodes.TRIP_FETCH_ERROR, 500);
   }
 };
 
@@ -237,7 +214,6 @@ export const createTrip = async (req: Request, res: Response) => {
       price,
       availableSeats,
       description,
-      instantBooking = false,
       maxTwoBackSeats = false,
     } = req.body;
 
@@ -253,23 +229,22 @@ export const createTrip = async (req: Request, res: Response) => {
     const missingFields = requiredFields.filter((field) => !req.body[field]);
 
     if (missingFields.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: `Не заполнены обязательные поля: ${missingFields.join(", ")}`,
+      return sendError(res, ErrorCodes.MISSING_REQUIRED_FIELDS, 400, {
+        missingFields: missingFields,
       });
     }
 
     if (!isValidCityKey(from.cityKey)) {
-      return res.status(400).json({
-        success: false,
-        message: `Неверный город отправления: ${from.cityKey}`,
+      return sendError(res, ErrorCodes.INVALID_CITY_KEY, 400, {
+        field: "from",
+        cityKey: from.cityKey,
       });
     }
 
     if (!isValidCityKey(to.cityKey)) {
-      return res.status(400).json({
-        success: false,
-        message: `Неверный город назначения: ${to.cityKey}`,
+      return sendError(res, ErrorCodes.INVALID_CITY_KEY, 400, {
+        field: "to",
+        cityKey: to.cityKey,
       });
     }
 
@@ -277,10 +252,7 @@ export const createTrip = async (req: Request, res: Response) => {
     const now = new Date();
 
     if (departureDateTime <= now) {
-      return res.status(400).json({
-        success: false,
-        message: "Дата и время поездки должны быть в будущем",
-      });
+      return sendError(res, ErrorCodes.TRIP_DATETIME_FUTURE_REQUIRED, 400);
     }
 
     // Автоматически рассчитываем информацию о маршруте
@@ -300,7 +272,6 @@ export const createTrip = async (req: Request, res: Response) => {
       price: parseFloat(price),
       availableSeats: parseInt(availableSeats),
       description: description || "",
-      instantBooking: Boolean(instantBooking),
       maxTwoBackSeats: Boolean(maxTwoBackSeats),
       status: "created",
       tripInfo: tripInfo || undefined,
@@ -327,17 +298,15 @@ export const createTrip = async (req: Request, res: Response) => {
     console.log("Поездка создана, ID:", newTrip.id);
 
     await updateUserActiveTrips(driverId);
-    res.status(201).json({
-      success: true,
-      message: "Поездка создана успешно",
-      data: tripWithDriver,
-    });
+    return sendSuccess(
+      res,
+      { trip: tripWithDriver },
+      ErrorCodes.TRIP_CREATED_SUCCESS,
+      201,
+    );
   } catch (error) {
     console.error("Ошибка при создании поездки:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при создании поездки",
-    });
+    return sendError(res, ErrorCodes.TRIP_CREATE_ERROR, 500);
   }
 };
 
@@ -354,10 +323,7 @@ export const updateTrip = async (req: Request, res: Response) => {
     });
 
     if (!trip) {
-      return res.status(404).json({
-        success: false,
-        message: "Поездка не найдена или у вас нет прав для редактирования",
-      });
+      return sendError(res, ErrorCodes.TRIP_NOT_FOUND_OR_NO_ACCESS, 404);
     }
 
     if (updateData.departureAt) {
@@ -367,17 +333,10 @@ export const updateTrip = async (req: Request, res: Response) => {
     await trip.update(updateData);
     await updateTripParticipantsActiveTrips(id);
 
-    res.json({
-      success: true,
-      message: "Поездка обновлена успешно",
-      data: trip,
-    });
+    return sendSuccess(res, trip, ErrorCodes.TRIP_UPDATED_SUCCESS, 200);
   } catch (error) {
     console.error("Ошибка при обновлении поездки:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при обновлении поездки",
-    });
+    return sendError(res, ErrorCodes.TRIP_UPDATE_ERROR, 500);
   }
 };
 
@@ -407,10 +366,7 @@ export const deleteTrip = async (req: Request, res: Response) => {
     });
 
     if (!trip) {
-      return res.status(404).json({
-        success: false,
-        message: "Поездка не найдена или у вас нет прав для удаления",
-      });
+      return sendError(res, ErrorCodes.TRIP_NOT_FOUND_OR_NO_ACCESS, 404);
     }
 
     // Обновляем статус поездки
@@ -483,16 +439,10 @@ export const deleteTrip = async (req: Request, res: Response) => {
       }
     }
 
-    res.json({
-      success: true,
-      message: "Поездка отменена",
-    });
+    return sendSuccess(res, null, ErrorCodes.TRIP_CANCELLED_SUCCESS, 200);
   } catch (error: any) {
     console.error("Ошибка при удалении поездки:", error.message);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при удалении поездки",
-    });
+    return sendError(res, ErrorCodes.TRIP_DELETE_ERROR, 500);
   }
 };
 
@@ -528,24 +478,15 @@ export const completeTrip = async (req: Request, res: Response) => {
     });
 
     if (!trip) {
-      return res.status(404).json({
-        success: false,
-        message: "Поездка не найдена или у вас нет прав",
-      });
+      return sendError(res, ErrorCodes.TRIP_NOT_FOUND_OR_NO_ACCESS, 404);
     }
 
     if (trip.status === "completed") {
-      return res.status(400).json({
-        success: false,
-        message: "Поездка уже завершена",
-      });
+      return sendError(res, ErrorCodes.TRIP_ALREADY_FINISHED, 400);
     }
 
     if (trip.status === "cancelled") {
-      return res.status(400).json({
-        success: false,
-        message: "Нельзя завершить отмененную поездку",
-      });
+      return sendError(res, ErrorCodes.CANNOT_FINISH_CANCELLED_TRIP, 400);
     }
 
     // Обновляем статус поездки
@@ -651,18 +592,11 @@ export const completeTrip = async (req: Request, res: Response) => {
       ],
     });
 
-    res.json({
-      success: true,
-      message: "Поездка успешно завершена и добавлена в историю участников",
-      data: updatedTrip,
-    });
+    return sendSuccess(res, updatedTrip, ErrorCodes.TRIP_FINISHED_SUCCESS, 200);
   } catch (error: any) {
     console.error("Ошибка при завершении поездки:", error.message);
     console.error(error.stack);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка сервера при завершении поездки",
-    });
+    return sendError(res, ErrorCodes.TRIP_FINISH_ERROR, 500);
   }
 };
 export const checkTripPaymentStatus = async (req: Request, res: Response) => {
@@ -673,12 +607,12 @@ export const checkTripPaymentStatus = async (req: Request, res: Response) => {
     const trip = await Trip.findByPk(tripId);
 
     if (!trip) {
-      return sendError(res, "TRIP_NOT_FOUND", 404);
+      return sendError(res, ErrorCodes.TRIP_NOT_FOUND, 404);
     }
 
     // Проверяем, что пользователь - водитель этой поездки
     if (trip.driverId !== userId) {
-      return sendError(res, "ACCESS_DENIED", 403);
+      return sendError(res, ErrorCodes.BOOKING_ACCESS_DENIED, 403);
     }
 
     sendSuccess(res, {
@@ -689,6 +623,6 @@ export const checkTripPaymentStatus = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("Check payment status error:", error.message);
-    sendError(res, "CHECK_STATUS_ERROR", 500);
+    return sendError(res, ErrorCodes.TRIP_FETCH_ERROR, 500);
   }
 };

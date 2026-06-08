@@ -21,7 +21,6 @@ export interface TripAttributes {
   price: number;
   availableSeats: number;
   description?: string;
-  instantBooking: boolean;
   maxTwoBackSeats: boolean;
   status: "created" | "paid" | "completed" | "cancelled";
   isPaid?: boolean;
@@ -37,12 +36,7 @@ export interface TripAttributes {
 
 export interface TripCreationAttributes extends Optional<
   TripAttributes,
-  | "id"
-  | "description"
-  | "status"
-  | "instantBooking"
-  | "maxTwoBackSeats"
-  | "tripInfo"
+  "id" | "description" | "status" | "maxTwoBackSeats" | "tripInfo"
 > {}
 
 class Trip
@@ -57,7 +51,6 @@ class Trip
   public price!: number;
   public availableSeats!: number;
   public description?: string;
-  public instantBooking!: boolean;
   public maxTwoBackSeats!: boolean;
   public status!: "created" | "paid" | "completed" | "cancelled";
   public isPaid?: boolean;
@@ -120,10 +113,6 @@ Trip.init(
     description: {
       type: DataTypes.TEXT,
       allowNull: true,
-    },
-    instantBooking: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: false,
     },
     maxTwoBackSeats: {
       type: DataTypes.BOOLEAN,
