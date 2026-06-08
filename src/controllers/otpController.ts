@@ -7,7 +7,16 @@ import { ErrorCodes } from "../utils/errorCodes";
 import { sendError, sendSuccess } from "../utils/responseHelper";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-export const sendSmsCode = async (phone: string, code: string) => {
+export const sendSmsCode = async (
+  phone: string,
+  code: string,
+  type: string,
+) => {
+  const messages: Record<string, string> = {
+    register: `Pop-utka.uz: Avtorizatsiya tasdiqlash kodi — ${code}. Kodni hech kimga bermang.`,
+    recover: `Pop-utka.uz: Parolni tiklash kodi — ${code}. Agar bu siz bo‘lmasangiz, xabarni e’tiborsiz qoldiring.`,
+    change_phone: `Pop-utka.uz: Telefon raqamingizni o'zgartirish kodi — ${code}. Kodni hech kimga bermang.`,
+  };
   try {
     const response = await axios.post(
       "http://185.8.212.184/smsgateway/",
@@ -17,7 +26,7 @@ export const sendSmsCode = async (phone: string, code: string) => {
         data: JSON.stringify([
           {
             phone: phone,
-            text: `PopUtka kod avtorizacii na saite: ${code}`,
+            text: messages[type],
           },
         ]),
       }),
@@ -60,7 +69,7 @@ export const sendOtpService = async (req: Request, res: Response) => {
       expiresAt: new Date(Date.now() + 5 * 60 * 1000),
       maxAttempts: 2,
     });
-    const coderes = await sendSmsCode(phone, code);
+    const coderes = await sendSmsCode(phone, code, type);
     return sendSuccess(
       res,
       { code: code, res: coderes },

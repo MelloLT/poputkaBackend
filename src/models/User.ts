@@ -27,8 +27,6 @@ interface UserAttributes {
   isVerified: boolean;
   emailVerified: boolean;
   phoneVerified: boolean;
-  verificationCode?: string;
-  verificationCodeExpires?: Date;
   isBanned: boolean;
   banReason?: string;
   bannedUntil?: Date;
@@ -160,8 +158,6 @@ interface UserCreationAttributes extends Optional<
   | "avatar"
   | "gender"
   | "car"
-  | "verificationCode"
-  | "verificationCodeExpires"
   | "activeTrips"
   | "notifications"
   | "about"
@@ -445,14 +441,6 @@ User.init(
     phoneVerified: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
-    },
-    verificationCode: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    verificationCodeExpires: {
-      type: DataTypes.DATE,
-      allowNull: true,
     },
     reviews: {
       type: DataTypes.JSONB,

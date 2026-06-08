@@ -2,16 +2,15 @@ import { Request, Response } from "express";
 import fs from "fs";
 import path from "path";
 import User from "../models/User";
+import { sendSuccess, sendError } from "../utils/responseHelper";
+import { ErrorCodes } from "../utils/errorCodes";
 
 const uploadsDir = path.join(process.cwd(), "uploads");
 
 export const uploadAvatar = async (req: Request, res: Response) => {
   try {
     if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: "Файл не был загружен",
-      });
+      return sendError(res, ErrorCodes.FILE_NOT_UPLOADED, 400);
     }
 
     const userId = req.user!.id;
@@ -19,27 +18,22 @@ export const uploadAvatar = async (req: Request, res: Response) => {
 
     await User.update({ avatar: fileUrl }, { where: { id: userId } });
 
-    res.json({
-      success: true,
-      message: "Аватар успешно загружен",
-      data: { avatar: fileUrl },
-    });
+    return sendSuccess(
+      res,
+      { avatar: fileUrl },
+      ErrorCodes.AVATAR_UPLOADED_SUCCESS,
+      200,
+    );
   } catch (error) {
     console.error("Ошибка загрузки аватара:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка при загрузке аватара",
-    });
+    return sendError(res, ErrorCodes.AVATAR_UPLOAD_ERROR, 500);
   }
 };
 
 export const uploadCarPhotos = async (req: Request, res: Response) => {
   try {
     if (!req.files || (req.files as Express.Multer.File[]).length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Файлы не были загружены",
-      });
+      return sendError(res, ErrorCodes.FILES_NOT_UPLOADED, 400);
     }
 
     const userId = req.user!.id;
@@ -68,17 +62,15 @@ export const uploadCarPhotos = async (req: Request, res: Response) => {
       await User.update({ car: updatedCar }, { where: { id: userId } });
     }
 
-    res.json({
-      success: true,
-      message: "Фотографии автомобиля успешно загружены",
-      data: { carPhotos: uploadedFiles },
-    });
+    return sendSuccess(
+      res,
+      { carPhotos: uploadedFiles },
+      ErrorCodes.CAR_PHOTOS_UPLOADED_SUCCESS,
+      200,
+    );
   } catch (error) {
     console.error("Ошибка загрузки фото автомобиля:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка при загрузке фотографий",
-    });
+    return sendError(res, ErrorCodes.CAR_PHOTOS_UPLOAD_ERROR, 500);
   }
 };
 
@@ -88,10 +80,7 @@ export const deleteFileByUrl = async (req: Request, res: Response) => {
     const userId = req.user!.id;
 
     if (!fileUrl) {
-      return res.status(400).json({
-        success: false,
-        message: "URL файла обязателен",
-      });
+      return sendError(res, ErrorCodes.FILE_URL_REQUIRED, 400);
     }
 
     const filename = fileUrl.split("/").pop();
@@ -102,10 +91,7 @@ export const deleteFileByUrl = async (req: Request, res: Response) => {
     } else if (fileUrl.includes("/cars/")) {
       folder = "cars";
     } else {
-      return res.status(400).json({
-        success: false,
-        message: "Недопустимый URL файла",
-      });
+      return sendError(res, ErrorCodes.INVALID_FILE_URL, 400);
     }
 
     const filePath = path.join(uploadsDir, folder, filename!);
@@ -127,22 +113,17 @@ export const deleteFileByUrl = async (req: Request, res: Response) => {
         }
       }
 
-      res.json({
-        success: true,
-        message: "Файл успешно удален",
-        data: { deletedUrl: fileUrl },
-      });
-    } else {
-      res.status(404).json({
-        success: false,
-        message: "Файл не найден",
-      });
+      return sendSuccess(
+        res,
+        { deletedUrl: fileUrl },
+        ErrorCodes.FILE_DELETED_SUCCESS,
+        200,
+      );
     }
+
+    return sendError(res, ErrorCodes.FILE_NOT_FOUND, 404);
   } catch (error) {
     console.error("Ошибка удаления файла:", error);
-    res.status(500).json({
-      success: false,
-      message: "Ошибка при удалении файла",
-    });
+    return sendError(res, ErrorCodes.FILE_DELETE_ERROR, 500);
   }
 };
