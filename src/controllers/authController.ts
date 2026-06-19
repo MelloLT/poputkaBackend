@@ -80,7 +80,7 @@ export const register = async (req: Request, res: Response) => {
     }
 
     // Валидация password
-    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d._-]{10,18}$/;
+    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d._-]{8,18}$/;
     if (!passwordRegex.test(password)) {
       validationErrors.push({
         field: "password",
