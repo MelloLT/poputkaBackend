@@ -21,6 +21,7 @@ import { Server } from "socket.io";
 import notificationRoutes from "./routes/notifications";
 import { socketAuthMiddleware } from "./middleware/socketAuth";
 import paymentRoutes from "./routes/payment";
+import passwordRoutes from "./routes/password";
 
 import { createServer } from "http";
 import adminRoutes from "./routes/admin";
@@ -107,6 +108,7 @@ app.use("/otp", otpRouter);
 app.use("/chats", chatRoutes);
 app.use("/admin", adminRoutes);
 app.use("/api/payment", paymentRoutes);
+app.use("/pass", passwordRoutes);
 
 // Базовые эндпоинты
 app.get("/", (req, res) => {

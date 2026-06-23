@@ -8,54 +8,82 @@ import { sendError, sendSuccess } from "../utils/responseHelper";
 export const createReview = async (req: Request, res: Response) => {
   try {
     const authorId = req.user!.id;
-    const { tripId, targetUserId, driving, cleanliness, politeness, text } =
-      req.body;
+    const {
+      tripId,
+      targetUserId,
+      driving,
+      cleanliness,
+      politeness,
+      text,
+      rating,
+    } = req.body;
 
-    // Валидация
-    if (
-      !tripId ||
-      !targetUserId ||
-      !driving ||
-      !cleanliness ||
-      !politeness ||
-      !text
-    ) {
+    // Валидация общих полей
+    if (!tripId || !targetUserId || !text) {
       return sendError(res, ErrorCodes.REVIEW_FIELDS_REQUIRED, 400);
     }
 
-    // Проверка рейтингов (от 1 до 5)
-    const ratings = [driving, cleanliness, politeness];
-    for (const rating of ratings) {
+    // Получаем целевого пользователя (кому отзыв)
+    const targetUser = await User.findByPk(targetUserId);
+    if (!targetUser) {
+      return sendError(res, ErrorCodes.USER_NOT_FOUND, 404);
+    }
+
+    let averageRating: number;
+
+    // Логика в зависимости от роли получателя
+    if (targetUser.role === "driver") {
+      // ✅ Водителю нужны 3 оценки
+      if (!driving || !cleanliness || !politeness) {
+        return sendError(res, ErrorCodes.REVIEW_FIELDS_REQUIRED, 400, {
+          required: ["driving", "cleanliness", "politeness"],
+        });
+      }
+
+      // Проверка рейтингов (от 1 до 5)
+      const ratings = [driving, cleanliness, politeness];
+      for (const r of ratings) {
+        if (r < 1 || r > 5) {
+          return sendError(res, ErrorCodes.REVIEW_RATING_INVALID, 400);
+        }
+      }
+
+      averageRating = (driving + cleanliness + politeness) / 3;
+    } else {
+      // ✅ Пассажиру нужна 1 общая оценка
+      if (!rating) {
+        return sendError(res, ErrorCodes.REVIEW_FIELDS_REQUIRED, 400, {
+          required: ["rating"],
+        });
+      }
+
       if (rating < 1 || rating > 5) {
         return sendError(res, ErrorCodes.REVIEW_RATING_INVALID, 400);
       }
+
+      averageRating = rating;
     }
 
-    // средняя оценка отзыва
-    const averageRating = (driving + cleanliness + politeness) / 3;
-
-    // проверка поездка завершена
+    // Проверка поездка завершена
     const trip = await Trip.findByPk(tripId);
     if (!trip || trip.status !== "completed") {
       return sendError(res, ErrorCodes.REVIEW_NOT_ALLOWED, 403);
     }
 
+    // Проверка участия в поездке
     let isParticipant = false;
 
     if (trip.driverId === authorId) {
-      // Автор - водитель, цель - пассажир
       const booking = await Booking.findOne({
         where: { tripId, passengerId: targetUserId, status: "confirmed" },
       });
       isParticipant = !!booking;
     } else if (trip.driverId === targetUserId) {
-      // Автор - пассажир, цель - водитель
       const booking = await Booking.findOne({
         where: { tripId, passengerId: authorId, status: "confirmed" },
       });
       isParticipant = !!booking;
     } else {
-      // Оба пассажиры
       const authorBooking = await Booking.findOne({
         where: { tripId, passengerId: authorId, status: "confirmed" },
       });
@@ -70,8 +98,7 @@ export const createReview = async (req: Request, res: Response) => {
     }
 
     // Проверка на повторный отзыв
-    const targetUser = await User.findByPk(targetUserId);
-    const existingReview = targetUser?.reviews?.find(
+    const existingReview = targetUser.reviews?.find(
       (review: any) => review.authorId === authorId && review.tripId === tripId,
     );
 
@@ -81,29 +108,37 @@ export const createReview = async (req: Request, res: Response) => {
 
     const author = await User.findByPk(authorId);
 
-    // Новый отзыв
-    const newReview = {
+    // Создаем новый отзыв
+    const newReview: any = {
       author: author!.fullName,
       authorId: authorId,
       text: text.trim(),
       rating: averageRating,
-      driving,
-      cleanliness,
-      politeness,
       createdAt: new Date(),
       tripId: tripId,
     };
 
+    // Добавляем детальные оценки только для водителя
+    if (targetUser.role === "driver") {
+      newReview.driving = driving;
+      newReview.cleanliness = cleanliness;
+      newReview.politeness = politeness;
+    }
+
     // Обновляем массив отзывов
-    const updatedReviews = [...(targetUser?.reviews || []), newReview];
+    const updatedReviews = [...(targetUser.reviews || []), newReview];
 
-    // Пересчитываем общий рейтинг пользователя
-    const totalRating = updatedReviews.reduce((sum, r) => sum + r.rating, 0);
-    const newAverageRating = totalRating / updatedReviews.length;
+    const totalRating = updatedReviews.reduce(
+      (sum: number, r: any) => sum + r.rating,
+      0,
+    );
+    const newAverageRating = parseFloat(
+      (totalRating / updatedReviews.length).toFixed(1),
+    );
 
-    await targetUser!.update({
+    await targetUser.update({
       reviews: updatedReviews,
-      rating: parseFloat(newAverageRating.toFixed(1)),
+      rating: newAverageRating,
     });
 
     return sendSuccess(

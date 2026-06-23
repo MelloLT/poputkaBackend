@@ -30,6 +30,8 @@ interface UserAttributes {
   isBanned: boolean;
   banReason?: string;
   bannedUntil?: Date;
+  verificationCode?: string;
+  verificationCodeExpires?: Date;
   reviews: Array<{
     author: string;
     authorId: string;
@@ -197,7 +199,6 @@ class User
   public isBanned!: boolean;
   public banReason?: string;
   public bannedUntil?: Date;
-
   public reviews!: Array<{
     author: string;
     authorId: string;
@@ -457,6 +458,14 @@ User.init(
     notifications: {
       type: DataTypes.JSONB,
       defaultValue: [],
+    },
+    verificationCode: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    verificationCodeExpires: {
+      type: DataTypes.DATE,
+      allowNull: true,
     },
   },
   {
