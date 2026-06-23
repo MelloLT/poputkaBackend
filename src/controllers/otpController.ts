@@ -69,10 +69,10 @@ export const sendOtpService = async (req: Request, res: Response) => {
       expiresAt: new Date(Date.now() + 5 * 60 * 1000),
       maxAttempts: 2,
     });
-    const coderes = await sendSmsCode(phone, code, type);
+    // const coderes = await sendSmsCode(phone, code, type);
     return sendSuccess(
       res,
-      { code: code, res: coderes },
+      { code: code },
       ErrorCodes.OTP_SENT_SUCCESS,
       200,
     );
