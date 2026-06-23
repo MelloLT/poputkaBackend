@@ -108,7 +108,7 @@ app.use("/otp", otpRouter);
 app.use("/chats", chatRoutes);
 app.use("/admin", adminRoutes);
 app.use("/api/payment", paymentRoutes);
-app.use("/password", passwordRoutes);
+app.use("/pass", passwordRoutes);
 
 // Базовые эндпоинты
 app.get("/", (req, res) => {
