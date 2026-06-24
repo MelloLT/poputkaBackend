@@ -514,7 +514,7 @@ export const logout = (req: Request, res: Response) => {
   });
   return sendSuccess(res, {}, ErrorCodes.LOGOUT_SUCCESS);
 };
-// Проверка перед регистрацией
+
 export const checkRegister = async (req: Request, res: Response) => {
   try {
     const { username, email, phone, password, firstName, lastName, birthDate } =
