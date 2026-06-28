@@ -514,3 +514,123 @@ export const logout = (req: Request, res: Response) => {
   });
   return sendSuccess(res, {}, ErrorCodes.LOGOUT_SUCCESS);
 };
+
+export const checkRegister = async (req: Request, res: Response) => {
+  try {
+    const { username, email, phone, password, firstName, lastName, birthDate } =
+      req.body;
+
+    // 1. Проверка обязательных полей
+    if (
+      !username ||
+      !email ||
+      !phone ||
+      !password ||
+      !firstName ||
+      !lastName ||
+      !birthDate
+    ) {
+      return sendError(res, ErrorCodes.MISSING_REQUIRED_FIELDS, 400, {
+        missingFields: Object.keys(req.body).filter((k) => !req.body[k]),
+      });
+    }
+
+    // 2. Проверка email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const allowedDomains = [
+      "gmail.com",
+      "mail.ru",
+      "yandex.ru",
+      "yahoo.com",
+      "outlook.com",
+      "icloud.com",
+      "uz",
+      "umail.uz",
+    ];
+    const emailDomain = email.split("@")[1];
+    if (
+      !emailRegex.test(email) ||
+      !allowedDomains.includes(emailDomain?.toLowerCase())
+    ) {
+      return sendError(res, ErrorCodes.INVALID_EMAIL, 400);
+    }
+
+    // 3. Проверка телефона
+    const phoneRegex = /^\+?[0-9]{11,15}$/;
+    if (!phoneRegex.test(phone.replace(/\s/g, ""))) {
+      return sendError(res, ErrorCodes.INVALID_PHONE, 400);
+    }
+
+    // 4. Проверка пароля
+    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d._-]{10,18}$/;
+    if (!passwordRegex.test(password)) {
+      return sendError(res, ErrorCodes.INVALID_PASSWORD_FORMAT, 400);
+    }
+
+    // 5. Проверка имени и фамилии
+    const nameRegex = /^[A-Za-zА-Яа-яЁё\s]{1,20}$/;
+    if (!nameRegex.test(firstName) || !nameRegex.test(lastName)) {
+      return sendError(res, ErrorCodes.INVALID_NAME, 400);
+    }
+
+    // 6. Проверка возраста
+    const birthDateObj = new Date(birthDate);
+    const today = new Date();
+    const minAgeDate = new Date(
+      today.getFullYear() - 18,
+      today.getMonth(),
+      today.getDate(),
+    );
+    if (birthDateObj > minAgeDate || birthDateObj > today) {
+      return sendError(res, ErrorCodes.INVALID_AGE, 400);
+    }
+
+    // 7. Проверка на существующего пользователя
+    const existingUser = await User.findOne({
+      where: {
+        [Op.or]: [{ username }, { email }, { phone }],
+      },
+    });
+
+    if (existingUser) {
+      const conflicts = [];
+      if (existingUser.username === username) conflicts.push("username");
+      if (existingUser.email === email) conflicts.push("email");
+      if (existingUser.phone === phone) conflicts.push("phone");
+      return sendError(res, ErrorCodes.USER_ALREADY_EXISTS, 400, { conflicts });
+    }
+
+    // Всё ок
+    return sendSuccess(res, { valid: true }, "REGISTER_CHECK_SUCCESS", 200);
+  } catch (error) {
+    console.error("Check register error:", error);
+    return sendError(res, ErrorCodes.REGISTER_CHECK_ERROR, 500);
+  }
+};
+
+// Проверка перед восстановлением пароля
+export const checkRecover = async (req: Request, res: Response) => {
+  try {
+    const { phone } = req.body;
+
+    if (!phone) {
+      return sendError(res, ErrorCodes.PHONE_REQUIRED, 400);
+    }
+
+    const user = await User.findOne({ where: { phone } });
+
+    if (!user) {
+      return sendError(res, ErrorCodes.USER_NOT_FOUND, 404);
+    }
+
+    return sendSuccess(
+      res,
+      { valid: true, userId: user.id },
+      "RECOVER_CHECK_SUCCESS",
+      200,
+    );
+  } catch (error) {
+    console.error("Check recover error:", error);
+    return sendError(res, ErrorCodes.RECOVER_CHECK_ERROR, 500);
+  }
+};
