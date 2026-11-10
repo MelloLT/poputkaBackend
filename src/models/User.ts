@@ -21,6 +21,8 @@ interface UserAttributes {
   telegram?: string;
   about?: string;
   tripsCount: number;
+  /** Последняя активность (вход или запрос с токеном) — для статистики «сколько пользуется» */
+  lastSeenAt?: Date | null;
   gender?: "male" | "female";
   avatar?: string | null;
   rating: number;
@@ -164,6 +166,7 @@ interface UserCreationAttributes extends Optional<
   | "notifications"
   | "about"
   | "tripsCount"
+  | "lastSeenAt"
   | "emailVerified"
   | "phoneVerified"
   | "telegram"
@@ -188,6 +191,7 @@ class User
   public telegram?: string;
   public about?: string;
   public tripsCount!: number;
+  public lastSeenAt?: Date | null;
   public gender?: "male" | "female";
   public avatar?: string | null;
   public rating!: number;
@@ -322,7 +326,7 @@ class User
   }
 
   async comparePassword(candidatePassword: string): Promise<boolean> {
-    const bcrypt = await import("bcryptjs");
+    const bcrypt = await import("bcrypt");
     return bcrypt.compare(candidatePassword, this.password);
   }
 }
@@ -414,6 +418,10 @@ User.init(
     tripsCount: {
       type: DataTypes.INTEGER,
       defaultValue: 0,
+    },
+    lastSeenAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
     },
     tripHistory: {
       type: DataTypes.JSONB,

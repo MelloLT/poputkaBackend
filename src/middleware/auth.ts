@@ -1,10 +1,10 @@
 import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
+import { verifyToken } from "../utils/token";
 import User from "../models/User";
 import { sendError } from "../utils/responseHelper";
 import { ErrorCodes } from "../utils/errorCodes";
-
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+import { logger } from "../config/logger";
+import { touchLastSeen } from "../utils/lastSeen";
 
 declare global {
   namespace Express {
@@ -31,10 +31,7 @@ export const authMiddleware = async (
       return sendError(res, ErrorCodes.TOKEN_NOT_PROVIDED, 401);
     }
 
-    const payload = jwt.verify(token, JWT_SECRET) as {
-      userId: string;
-      userRole: string;
-    };
+    const payload = verifyToken(token);
 
     const user = await User.findByPk(payload.userId, {
       attributes: {
@@ -62,9 +59,10 @@ export const authMiddleware = async (
     }
 
     req.user = user;
+    touchLastSeen(user);
     next();
   } catch (error) {
-    console.error("Ошибка аутентификации:", error);
+    logger.debug({ err: error }, "auth failed");
     return sendError(res, ErrorCodes.INVALID_OR_EXPIRED_TOKEN, 401);
   }
 };

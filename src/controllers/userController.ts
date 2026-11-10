@@ -1,7 +1,5 @@
 import { Request, Response } from "express";
 import User from "../models/User";
-import Booking from "../models/Booking";
-import Trip from "../models/Trip";
 import { Op } from "sequelize";
 import {
   updateProfileSchema,
@@ -12,6 +10,21 @@ import { sendSuccess, sendError } from "../utils/responseHelper";
 import { ErrorCodes } from "../utils/errorCodes";
 
 // Получить всех пользователей
+// Поля, которые не должны уходить в публичные ответы (/users, /users/drivers, /users/:id).
+// Раньше эти эндпоинты без авторизации отдавали телефоны, email, уведомления и жалобы всех пользователей.
+const PRIVATE_USER_FIELDS = [
+  "password",
+  "verificationCode",
+  "verificationCodeExpires",
+  "notifications",
+  "reports",
+  "email",
+  "phone",
+  "banReason",
+  "bannedUntil",
+  "activeTrips",
+];
+
 export const getUsers = async (req: Request, res: Response) => {
   try {
     const { role } = req.query;
@@ -23,9 +36,7 @@ export const getUsers = async (req: Request, res: Response) => {
 
     const users = await User.findAll({
       where: whereClause,
-      attributes: {
-        exclude: ["password", "verificationCode", "verificationCodeExpires"],
-      },
+      attributes: { exclude: PRIVATE_USER_FIELDS },
       order: [["createdAt", "DESC"]],
     });
 
@@ -117,15 +128,7 @@ export const getUserById = async (req: Request, res: Response) => {
     const currentUserId = req.user?.id;
 
     const user = await User.findByPk(id, {
-      attributes: {
-        exclude: [
-          "password",
-          "verificationCode",
-          "verificationCodeExpires",
-          "notifications",
-          "reports",
-        ],
-      },
+      attributes: { exclude: PRIVATE_USER_FIELDS },
     });
 
     if (!user) {
@@ -157,187 +160,17 @@ export const getUserById = async (req: Request, res: Response) => {
       };
     }
 
-    let activeTrips = [];
-
-    if (user.role === "driver") {
-      const driverTrips = await Trip.findAll({
-        where: {
-          driverId: user.id,
-          status: "active",
-        },
-        include: [
-          {
-            model: Booking,
-            as: "bookings",
-            where: { status: ["confirmed", "pending"] },
-            required: false,
-            include: [
-              {
-                model: User,
-                as: "passenger",
-                attributes: [
-                  "id",
-                  "firstName",
-                  "lastName",
-                  "avatar",
-                  "rating",
-                  "telegram",
-                  "phone",
-                ],
-              },
-            ],
-          },
-        ],
-        order: [["departureAt", "ASC"]],
-      });
-
-      activeTrips = driverTrips.map((trip) => ({
-        id: trip.id,
-        role: "driver" as const,
-        from: trip.from,
-        to: trip.to,
-        departureAt: trip.departureAt,
-        price: trip.price,
-        availableSeats: trip.availableSeats,
-        status: trip.status,
-        description: trip.description,
-        maxTwoBackSeats: trip.maxTwoBackSeats,
-        tripInfo: trip.tripInfo,
-        createdAt: trip.createdAt,
-        updatedAt: trip.updatedAt,
-
-        bookings: (trip.bookings || []).map((booking) => ({
-          id: booking.id,
-          seats: booking.seats,
-          status: booking.status,
-          createdAt: booking.createdAt,
-          updatedAt: booking.updatedAt,
-          passengerId: booking.passengerId,
-          passenger: booking.passenger
-            ? {
-                id: booking.passenger.id,
-                firstName: booking.passenger.firstName,
-                lastName: booking.passenger.lastName,
-                avatar: booking.passenger.avatar,
-                rating: booking.passenger.rating,
-                telegram: booking.passenger.telegram,
-                phone: booking.passenger.phone,
-              }
-            : undefined,
-        })),
-      }));
-    } else {
-      // Для пассажира
-      const passengerBookings = await Booking.findAll({
-        where: {
-          passengerId: user.id,
-          status: ["confirmed", "pending"],
-        },
-        include: [
-          {
-            model: Trip,
-            as: "trip",
-            where: { status: "active" },
-            include: [
-              {
-                model: User,
-                as: "driver",
-                attributes: [
-                  "id",
-                  "firstName",
-                  "lastName",
-                  "avatar",
-                  "rating",
-                  "car",
-                  "telegram",
-                  "phone",
-                ],
-              },
-            ],
-          },
-        ],
-        order: [["createdAt", "DESC"]],
-      });
-
-      activeTrips = passengerBookings
-        .map((booking) => {
-          if (!booking.trip) return null;
-
-          return {
-            id: booking.trip.id,
-            role: "passenger" as const,
-            from: booking.trip.from,
-            to: booking.trip.to,
-            departureAt: booking.trip.departureAt,
-            price: booking.trip.price,
-            availableSeats: booking.trip.availableSeats,
-            status: booking.trip.status,
-            description: booking.trip.description,
-            maxTwoBackSeats: booking.trip.maxTwoBackSeats,
-            tripInfo: booking.trip.tripInfo,
-            createdAt: booking.trip.createdAt,
-            updatedAt: booking.trip.updatedAt,
-            myBooking: {
-              id: booking.id,
-              seats: booking.seats,
-              status: booking.status as "confirmed" | "pending",
-              createdAt: booking.createdAt,
-            },
-            driver: booking.trip.driver
-              ? {
-                  id: booking.trip.driver.id,
-                  firstName: booking.trip.driver.firstName,
-                  lastName: booking.trip.driver.lastName,
-                  avatar: booking.trip.driver.avatar,
-                  rating: booking.trip.driver.rating,
-                  car: booking.trip.driver.car,
-                  telegram: booking.trip.driver.telegram,
-                  phone: booking.trip.driver.phone,
-                }
-              : undefined,
-          };
-        })
-        .filter((trip) => trip !== null);
-    }
-
-    const myBookings = await Booking.findAll({
-      where: { passengerId: id },
-      include: [
-        {
-          model: Trip,
-          as: "trip",
-          include: [
-            {
-              model: User,
-              as: "driver",
-              attributes: [
-                "id",
-                "firstName",
-                "lastName",
-                "avatar",
-                "rating",
-                "car",
-                "telegram",
-                "phone",
-              ],
-            },
-          ],
-        },
-        {
-          model: User,
-          as: "passenger",
-          attributes: ["id", "firstName", "lastName", "avatar", "rating"],
-        },
-      ],
-      order: [["createdAt", "DESC"]],
-    });
-
+    // Публичный профиль: без активных поездок и броней — раньше здесь всем отдавались
+    // маршруты пользователя и телефоны его пассажиров/водителей. Владелец получает это через /auth/me.
     const userData: any = {
       id: user.id,
       username: user.username,
-      email: user.email,
-      phone: user.phone,
       role: user.role,
+      gender: user.gender,
+      emailVerified: user.emailVerified,
+      phoneVerified: user.phoneVerified,
+      reviews: user.reviews ?? [],
+      createdAt: user.createdAt,
       firstName: user.firstName,
       lastName: user.lastName,
       birthDate: user.birthDate,
@@ -348,8 +181,6 @@ export const getUserById = async (req: Request, res: Response) => {
       about: user.about,
       telegram: user.telegram,
       tripsCount: user.tripsCount,
-      activeTrips: activeTrips,
-      myBookings: myBookings,
     };
 
     if (isOwner && detailedRatings) {
@@ -368,9 +199,7 @@ export const getDrivers = async (req: Request, res: Response) => {
   try {
     const drivers = await User.findAll({
       where: { role: "driver" },
-      attributes: {
-        exclude: ["password", "verificationCode", "verificationCodeExpires"],
-      },
+      attributes: { exclude: PRIVATE_USER_FIELDS },
       order: [["rating", "DESC"]],
     });
 
