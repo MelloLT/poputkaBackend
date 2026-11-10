@@ -1,6 +1,6 @@
-import { Server } from "socket.io";
+import { getIO } from "../socket";
 
-export const pushNotification = (io: Server, userId: string, notif: any) => {
-  io.to(`notifications:${userId}`).emit("new-notification", notif);
-  console.log(`Pushed notification to ${userId}:`, notif);
+/** Отправка уведомления в реальном времени (молча пропускает, если сокет-сервер не запущен). */
+export const pushNotification = (userId: string, notif: unknown) => {
+  getIO()?.to(`notifications:${userId}`).emit("new-notification", notif);
 };

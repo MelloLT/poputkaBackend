@@ -1,18 +1,14 @@
+import { touchLastSeen } from "../utils/lastSeen";
 import { Request, Response } from "express";
 import { Op } from "sequelize";
 import User from "../models/User";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 import Booking from "../models/Booking";
 import Trip from "../models/Trip";
 import { sendSuccess, sendError } from "../utils/responseHelper";
 import { ErrorCodes } from "../utils/errorCodes";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-
-const generateToken = (userId: string, userRole: string) => {
-  return jwt.sign({ userId, userRole }, JWT_SECRET, { expiresIn: "7d" });
-};
+import { generateToken, authCookieOptions, authCookieMaxAgeMs } from "../utils/token";
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -234,14 +230,11 @@ export const login = async (req: Request, res: Response) => {
     }
 
     const token = generateToken(user.id, user.role);
+    touchLastSeen(user);
 
     res.cookie("accessToken", token, {
-      domain: ".pop-utka.uz",
-      path: "/",
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-      maxAge: 1000 * 60 * 60 * 24,
+      ...authCookieOptions(),
+      maxAge: authCookieMaxAgeMs,
     });
 
     sendSuccess(
@@ -508,10 +501,7 @@ export const getMe = async (req: Request, res: Response) => {
 };
 
 export const logout = (req: Request, res: Response) => {
-  res.clearCookie("accessToken", {
-    path: "/",
-    domain: ".pop-utka.uz",
-  });
+  res.clearCookie("accessToken", authCookieOptions());
   return sendSuccess(res, {}, ErrorCodes.LOGOUT_SUCCESS);
 };
 

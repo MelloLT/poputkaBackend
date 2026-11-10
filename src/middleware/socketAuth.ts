@@ -1,24 +1,21 @@
 import { Socket } from "socket.io";
-import jwt from "jsonwebtoken";
 import * as cookie from "cookie";
 import User from "../models/User";
-
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+import { verifyToken } from "../utils/token";
+import { logger } from "../config/logger";
 
 export const socketAuthMiddleware = async (
   socket: Socket,
-  next: (err?: Error) => void
+  next: (err?: Error) => void,
 ) => {
   try {
     const cookieHeader = socket.handshake.headers.cookie;
-    console.log("handshake.headers.cookie:", cookieHeader);
-    if (!cookieHeader) return next(new Error("Нет cookie"));
+    if (!cookieHeader) return next(new Error("UNAUTHORIZED"));
 
-    const cookies = cookie.parse(cookieHeader);
-    const token = cookies.accessToken;
-    if (!token) return next(new Error("Токен не предоставлен"));
+    const token = cookie.parse(cookieHeader).accessToken;
+    if (!token) return next(new Error("UNAUTHORIZED"));
 
-    const payload = jwt.verify(token, JWT_SECRET) as { userId: string };
+    const payload = verifyToken(token);
 
     const user = await User.findByPk(payload.userId, {
       attributes: {
@@ -26,13 +23,12 @@ export const socketAuthMiddleware = async (
       },
     });
 
-    if (!user) return next(new Error("Пользователь не найден"));
+    if (!user) return next(new Error("UNAUTHORIZED"));
 
     socket.data.user = user;
-
     next();
   } catch (err) {
-    console.error("Ошибка авторизации сокета:", err);
-    next(new Error("Неверный или просроченный токен"));
+    logger.debug({ err }, "socket auth failed");
+    next(new Error("UNAUTHORIZED"));
   }
 };
