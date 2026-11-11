@@ -10,7 +10,6 @@ import {
   updateUserActiveTrips,
 } from "../services/userTripsService";
 import { pushNotification } from "../utils/notifications";
-import { io } from "../index";
 import { sendSuccess, sendError } from "../utils/responseHelper";
 import { addNotification } from "../utils/notificationHelper";
 import { ErrorCodes } from "../utils/errorCodes";
@@ -20,7 +19,8 @@ export const getTrips = async (req: Request, res: Response) => {
     const {
       from,
       to,
-      departureAt,
+      departureAt: departureAtParam,
+      date,
       minPrice,
       maxPrice,
       seats,
@@ -30,20 +30,6 @@ export const getTrips = async (req: Request, res: Response) => {
       sortBy = "earliest",
       verifiedOnly = false,
     } = req.query;
-
-    console.log("Фильтры запроса:", {
-      from,
-      to,
-      departureAt,
-      minPrice,
-      maxPrice,
-      seats,
-      timeFrom,
-      timeTo,
-      driverGender,
-      sortBy,
-      verifiedOnly,
-    });
 
     const whereClause: any = { status: { [Op.in]: ["created", "paid"] } };
     const includeClause: any = [
@@ -77,21 +63,24 @@ export const getTrips = async (req: Request, res: Response) => {
       };
     }
 
-    // Фильтр по дате отправления
+    // Фильтр по дате отправления. Фронтенд шлёт ?date=YYYY-MM-DD (раньше игнорировалось — ждали departureAt).
+    // День считаем по Ташкенту (UTC+5, без перехода на летнее время), а не по UTC.
+    const departureAt = (date ?? departureAtParam) as string | undefined;
+    const now = new Date();
     if (departureAt) {
-      const date = new Date(departureAt as string);
-      if (!isNaN(date.getTime())) {
-        // Ищем поездки на эту дату (в течение дня)
-        const startOfDay = new Date(date);
-        startOfDay.setUTCHours(0, 0, 0, 0);
-
-        const endOfDay = new Date(date);
-        endOfDay.setUTCHours(23, 59, 59, 999);
-
+      const ymd = /^\d{4}-\d{2}-\d{2}$/.test(departureAt)
+        ? departureAt
+        : new Date(departureAt).toISOString().slice(0, 10);
+      const startOfDay = new Date(`${ymd}T00:00:00+05:00`);
+      if (!isNaN(startOfDay.getTime())) {
+        const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000 - 1);
         whereClause.departureAt = {
-          [Op.between]: [startOfDay, endOfDay],
+          [Op.between]: [startOfDay < now ? now : startOfDay, endOfDay],
         };
       }
+    } else {
+      // Без даты показываем только будущие поездки (раньше в выдачу попадали прошедшие)
+      whereClause.departureAt = { [Op.gte]: now };
     }
 
     // Фильтр по цене
@@ -127,7 +116,6 @@ export const getTrips = async (req: Request, res: Response) => {
       };
     }
 
-    console.log("Условия поиска:", JSON.stringify(whereClause, null, 2));
 
     let order: any[] = [];
     if (sortBy === "cheapest") {
@@ -137,13 +125,28 @@ export const getTrips = async (req: Request, res: Response) => {
       order = [["departureAt", "ASC"]];
     }
 
-    const trips = await Trip.findAll({
+    const allTrips = await Trip.findAll({
       where: whereClause,
       include: includeClause,
       order,
     });
 
-    console.log(`Найдено поездок: ${trips.length}`);
+    // Фильтр по времени отправления (HH:MM по Ташкенту). Раньше параметры принимались, но игнорировались.
+    const toMinutes = (v: unknown) => {
+      const m = /^(\d{1,2}):(\d{2})$/.exec(String(v ?? ""));
+      return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+    };
+    const fromMin = toMinutes(timeFrom);
+    const toMin = toMinutes(timeTo);
+    const trips =
+      fromMin === null && toMin === null
+        ? allTrips
+        : allTrips.filter((t) => {
+            const tashkent = new Date(new Date(t.departureAt).getTime() + 5 * 60 * 60 * 1000);
+            const mins = tashkent.getUTCHours() * 60 + tashkent.getUTCMinutes();
+            return (fromMin === null || mins >= fromMin) && (toMin === null || mins <= toMin);
+          });
+
 
     return sendSuccess(res, trips, ErrorCodes.TRIPS_FETCH_SUCCESS, 200, {
       total: trips.length,

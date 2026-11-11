@@ -8,6 +8,8 @@ import {
   getAllReports,
   updateReportStatus,
   getAdminStats,
+  getUserGrowth,
+  exportUsersXlsx,
 } from "../controllers/adminController";
 import { authMiddleware, requireAdmin } from "../middleware/auth";
 
@@ -31,5 +33,9 @@ router.patch("/reports/:userId/:reportId", updateReportStatus);
 
 // Статистика
 router.get("/stats", getAdminStats);
+router.get("/stats/growth", getUserGrowth);
+
+// Выгрузка для заказчика: открыть в браузере, будучи залогиненным админом -> скачается .xlsx
+router.get("/export/users.xlsx", exportUsersXlsx);
 
 export default router;

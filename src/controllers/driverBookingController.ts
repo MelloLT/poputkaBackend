@@ -3,7 +3,6 @@ import Booking from "../models/Booking";
 import Trip from "../models/Trip";
 import User from "../models/User";
 import { updateTripParticipantsActiveTrips } from "../services/userTripsService";
-import { io } from "../index";
 import { pushNotification } from "../utils/notifications";
 import { sendSuccess, sendError } from "../utils/responseHelper";
 import { ErrorCodes } from "../utils/errorCodes";

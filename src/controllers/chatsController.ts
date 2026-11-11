@@ -83,6 +83,11 @@ export const getChatByID = async (req: Request, res: Response) => {
       return sendError(res, ErrorCodes.CHAT_NOT_FOUND, 404);
     }
 
+    const requesterId = req.user!.id;
+    if (chat.user1Id !== requesterId && chat.user2Id !== requesterId) {
+      return sendError(res, ErrorCodes.CHAT_ACCESS_DENIED, 403);
+    }
+
     return sendSuccess(res, { chat }, ErrorCodes.CHAT_FETCH_SUCCESS, 200);
   } catch (error) {
     console.error("Ошибка при получении поездки:", error);
@@ -91,10 +96,11 @@ export const getChatByID = async (req: Request, res: Response) => {
 };
 export const sendMessage = async (req: Request, res: Response) => {
   try {
-    const { chatId, text } = req.body;
+    const chatId = req.params.id || req.body.chatId;
+    const text = typeof req.body.text === "string" ? req.body.text.trim() : "";
     const userId = req.user!.id;
 
-    if (!chatId || !text?.trim()) {
+    if (!chatId || !text || text.length > 2000) {
       return sendError(res, ErrorCodes.CHATID_TEXT_REQUIRED, 400);
     }
 
@@ -127,8 +133,13 @@ export const createChat = async (req: Request, res: Response) => {
     const user1Id = req.user!.id;
     const { user2Id } = req.body;
 
-    if (!user2Id) {
+    if (!user2Id || user2Id === user1Id) {
       return sendError(res, ErrorCodes.SECOND_USER_MISSING, 400);
+    }
+
+    const otherUser = await User.findByPk(user2Id, { attributes: ["id"] });
+    if (!otherUser) {
+      return sendError(res, ErrorCodes.USER_NOT_FOUND, 404);
     }
 
     const existingChat = await Chat.findOne({
