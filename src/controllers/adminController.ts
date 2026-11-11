@@ -1,3 +1,5 @@
+import { buildUsersWorkbook, getUserGrowthStats } from "../services/userReport";
+import { logger } from "../config/logger";
 import { Request, Response } from "express";
 import User from "../models/User";
 import Trip from "../models/Trip";
@@ -514,5 +516,34 @@ export const getAdminStats = async (req: Request, res: Response) => {
       success: false,
       message: "Ошибка сервера",
     });
+  }
+};
+
+// ---------- Отчёты для заказчика ----------
+
+/** JSON: рост и активность пользователей (новые за день/неделю/месяц, активные) */
+export const getUserGrowth = async (_req: Request, res: Response) => {
+  try {
+    return res.json({ success: true, data: await getUserGrowthStats() });
+  } catch (error) {
+    logger.error({ err: error }, "user growth stats failed");
+    return res.status(500).json({ success: false, message: "INTERNAL_SERVER_ERROR" });
+  }
+};
+
+/** Excel: сводка, регистрации по дням и месяцам, список пользователей. Только для админа (там телефоны и email). */
+export const exportUsersXlsx = async (req: Request, res: Response) => {
+  try {
+    const wb = await buildUsersWorkbook();
+    const date = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tashkent" });
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="pop-utka-users-${date}.xlsx"`);
+    res.setHeader("Cache-Control", "no-store");
+    logger.info({ adminId: req.user?.id }, "users report exported");
+    await wb.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    logger.error({ err: error }, "users export failed");
+    if (!res.headersSent) res.status(500).json({ success: false, message: "INTERNAL_SERVER_ERROR" });
   }
 };
