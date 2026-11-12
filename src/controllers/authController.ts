@@ -1,3 +1,4 @@
+import { FieldError, normalizePhone, validateRegistration } from "../utils/userValidation";
 import { touchLastSeen } from "../utils/lastSeen";
 import { Request, Response } from "express";
 import { Op } from "sequelize";
@@ -9,6 +10,19 @@ import { sendSuccess, sendError } from "../utils/responseHelper";
 import { ErrorCodes } from "../utils/errorCodes";
 
 import { generateToken, authCookieOptions, authCookieMaxAgeMs } from "../utils/token";
+
+/** Какие из логин / email / телефон уже заняты — ошибки по полям */
+const findConflicts = async (u: { username: string; email: string; phone: string }) => {
+  const existing = await User.findAll({
+    where: { [Op.or]: [{ username: u.username }, { email: u.email }, { phone: u.phone }] },
+    attributes: ["username", "email", "phone"],
+  });
+  const errors: FieldError[] = [];
+  if (existing.some((e) => e.username === u.username)) errors.push({ field: "username", code: "USERNAME_TAKEN" });
+  if (existing.some((e) => e.email?.toLowerCase() === u.email)) errors.push({ field: "email", code: "EMAIL_TAKEN" });
+  if (existing.some((e) => e.phone === u.phone)) errors.push({ field: "phone", code: "PHONE_TAKEN" });
+  return errors;
+};
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -26,118 +40,22 @@ export const register = async (req: Request, res: Response) => {
       car,
     } = req.body;
 
-    console.log("1. Проверка обязательных полей");
-    const requiredFields = [
-      "username",
-      "email",
-      "phone",
-      "password",
-      "role",
-      "gender",
-      "firstName",
-      "lastName",
-    ];
-    const missingFields = requiredFields.filter((field) => !req.body[field]);
-
-    if (missingFields.length > 0) {
-      console.log("Отсутствуют поля:", missingFields);
-      return sendError(res, ErrorCodes.EMPTY_OR_UNPARSED_REQUEST_BODY, 400, {
-        missingFields: missingFields,
-      });
-    }
-
-    const validationErrors: Array<{ field: string; code: string }> = [];
-
-    // Валидация email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const allowedDomains = [
-      "gmail.com",
-      "mail.ru",
-      "yandex.ru",
-      "yahoo.com",
-      "outlook.com",
-      "icloud.com",
-      "uz",
-      "umail.uz",
-    ];
-    const emailDomain = email.split("@")[1];
-
-    if (
-      !emailRegex.test(email) ||
-      !allowedDomains.includes(emailDomain?.toLowerCase())
-    ) {
-      validationErrors.push({ field: "email", code: "INVALID_EMAIL_FORMAT" });
-    }
-
-    // Валидация phone
-    const phoneRegex = /^\+?[0-9]{11,15}$/;
-    if (!phoneRegex.test(phone.replace(/\s/g, ""))) {
-      validationErrors.push({ field: "phone", code: "INVALID_PHONE_FORMAT" });
-    }
-
-    // Валидация password
-    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d._-]{8,18}$/;
-    if (!passwordRegex.test(password)) {
-      validationErrors.push({
-        field: "password",
-        code: "INVALID_PASSWORD_FORMAT",
-      });
-    }
-
-    // Валидация возраста
-    const birthDateObj = new Date(birthDate);
-    const today = new Date();
-    const minAgeDate = new Date(
-      today.getFullYear() - 18,
-      today.getMonth(),
-      today.getDate(),
-    );
-
-    if (birthDateObj > minAgeDate) {
-      validationErrors.push({
-        field: "birthDate",
-        code: "AGE_REQUIRED_MIN_18",
-      });
-    }
-
-    if (birthDateObj > today) {
-      validationErrors.push({ field: "birthDate", code: "BIRTH_DATE_FUTURE" });
-    }
-
-    // Валидация имени и фамилии
-    const nameRegex = /^[A-Za-zА-Яа-яЁё\s]{1,20}$/;
-    if (!nameRegex.test(firstName)) {
-      validationErrors.push({
-        field: "firstName",
-        code: "INVALID_NAME_FORMAT",
-      });
-    }
-    if (!nameRegex.test(lastName)) {
-      validationErrors.push({ field: "lastName", code: "INVALID_NAME_FORMAT" });
-    }
-
+    // Все ошибки сразу, с кодом и текстом у каждого поля (тексты добавляет sendError)
+    const validationErrors = validateRegistration(req.body);
     if (validationErrors.length > 0) {
-      return sendError(res, ErrorCodes.VALIDATION_ERROR, 422, {
-        errors: validationErrors,
-      });
+      return sendError(res, ErrorCodes.VALIDATION_ERROR, 422, { errors: validationErrors });
     }
 
-    console.log("Проверка уникальности пользователя");
-    const existingUser = await User.findOne({
-      where: {
-        [Op.or]: [{ username }, { email }, { phone }],
-      },
-    });
-
-    if (existingUser) {
-      console.log("Найден существующий пользователь");
-      const conflicts = [];
-      if (existingUser.username === username) conflicts.push("логин");
-      if (existingUser.email === email) conflicts.push("email");
-      if (existingUser.phone === phone) conflicts.push("телефон");
-
+    const normalized = {
+      username: String(username).trim(),
+      email: String(email).trim().toLowerCase(),
+      phone: normalizePhone(phone),
+    };
+    const conflicts = await findConflicts(normalized);
+    if (conflicts.length > 0) {
       return sendError(res, ErrorCodes.USER_ALREADY_EXISTS, 400, {
-        conflicts: conflicts,
+        conflicts: conflicts.map((c) => c.field),
+        errors: conflicts,
       });
     }
 
@@ -147,17 +65,14 @@ export const register = async (req: Request, res: Response) => {
 
     console.log("Создание пользователя в БД");
     const user = await User.create({
-      username,
-      email,
-      phone,
+      ...normalized,
       password: hashedPassword,
-      role,
-      firstName,
-      lastName,
-      birthDate,
-      avatar: avatar || undefined,
-      gender: gender || undefined,
-      car: car || undefined,
+      role, // уже проверено: только passenger | driver
+      firstName: String(firstName).trim(),
+      lastName: String(lastName).trim(),
+      birthDate: String(birthDate).slice(0, 10),
+      gender,
+      // аватар и машина задаются отдельными эндпоинтами (/upload/avatar, /users/me/car)
       rating: 0,
       isVerified: false,
       reviews: [],
@@ -510,84 +425,39 @@ export const checkRegister = async (req: Request, res: Response) => {
     const { username, email, phone, password, firstName, lastName, birthDate } =
       req.body;
 
-    // 1. Проверка обязательных полей
-    if (
-      !username ||
-      !email ||
-      !phone ||
-      !password ||
-      !firstName ||
-      !lastName ||
-      !birthDate
-    ) {
-      return sendError(res, ErrorCodes.MISSING_REQUIRED_FIELDS, 400, {
-        missingFields: Object.keys(req.body).filter((k) => !req.body[k]),
+    const validationErrors = validateRegistration(req.body, { requireRoleGender: false });
+    if (validationErrors.length > 0) {
+      // Совместимость: раньше здесь был один конкретный код со статусом 400 — сохраняем его
+      // на верхнем уровне, а все ошибки с текстами отдаём в meta.errors
+      const first = validationErrors[0]!;
+      const legacy: Record<string, string> = {
+        email: ErrorCodes.INVALID_EMAIL,
+        phone: ErrorCodes.INVALID_PHONE,
+        password: ErrorCodes.INVALID_PASSWORD_FORMAT,
+        firstName: ErrorCodes.INVALID_NAME,
+        lastName: ErrorCodes.INVALID_NAME,
+        birthDate: ErrorCodes.INVALID_AGE,
+      };
+      const code =
+        first.code === "FIELD_REQUIRED"
+          ? ErrorCodes.MISSING_REQUIRED_FIELDS
+          : (legacy[first.field] ?? first.code);
+      return sendError(res, code, 400, {
+        errors: validationErrors,
+        missingFields: validationErrors.filter((e) => e.code === "FIELD_REQUIRED").map((e) => e.field),
       });
     }
 
-    // 2. Проверка email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const allowedDomains = [
-      "gmail.com",
-      "mail.ru",
-      "yandex.ru",
-      "yahoo.com",
-      "outlook.com",
-      "icloud.com",
-      "uz",
-      "umail.uz",
-    ];
-    const emailDomain = email.split("@")[1];
-    if (
-      !emailRegex.test(email) ||
-      !allowedDomains.includes(emailDomain?.toLowerCase())
-    ) {
-      return sendError(res, ErrorCodes.INVALID_EMAIL, 400);
-    }
-
-    // 3. Проверка телефона
-    const phoneRegex = /^\+?[0-9]{11,15}$/;
-    if (!phoneRegex.test(phone.replace(/\s/g, ""))) {
-      return sendError(res, ErrorCodes.INVALID_PHONE, 400);
-    }
-
-    // 4. Проверка пароля
-    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d._-]{10,18}$/;
-    if (!passwordRegex.test(password)) {
-      return sendError(res, ErrorCodes.INVALID_PASSWORD_FORMAT, 400);
-    }
-
-    // 5. Проверка имени и фамилии
-    const nameRegex = /^[A-Za-zА-Яа-яЁё\s]{1,20}$/;
-    if (!nameRegex.test(firstName) || !nameRegex.test(lastName)) {
-      return sendError(res, ErrorCodes.INVALID_NAME, 400);
-    }
-
-    // 6. Проверка возраста
-    const birthDateObj = new Date(birthDate);
-    const today = new Date();
-    const minAgeDate = new Date(
-      today.getFullYear() - 18,
-      today.getMonth(),
-      today.getDate(),
-    );
-    if (birthDateObj > minAgeDate || birthDateObj > today) {
-      return sendError(res, ErrorCodes.INVALID_AGE, 400);
-    }
-
-    // 7. Проверка на существующего пользователя
-    const existingUser = await User.findOne({
-      where: {
-        [Op.or]: [{ username }, { email }, { phone }],
-      },
+    const conflicts = await findConflicts({
+      username: String(username).trim(),
+      email: String(email).trim().toLowerCase(),
+      phone: normalizePhone(phone),
     });
-
-    if (existingUser) {
-      const conflicts = [];
-      if (existingUser.username === username) conflicts.push("username");
-      if (existingUser.email === email) conflicts.push("email");
-      if (existingUser.phone === phone) conflicts.push("phone");
-      return sendError(res, ErrorCodes.USER_ALREADY_EXISTS, 400, { conflicts });
+    if (conflicts.length > 0) {
+      return sendError(res, ErrorCodes.USER_ALREADY_EXISTS, 400, {
+        conflicts: conflicts.map((c) => c.field),
+        errors: conflicts,
+      });
     }
 
     // Всё ок
