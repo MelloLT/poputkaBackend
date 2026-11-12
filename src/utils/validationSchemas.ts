@@ -1,3 +1,4 @@
+import { ageOn, MAX_AGE, MIN_AGE } from "./userValidation";
 import { z } from "zod";
 
 // Базовая схема для имени
@@ -5,7 +6,7 @@ const nameSchema = z
   .string()
   .min(2, "Минимум 2 символа")
   .max(50, "Максимум 50 символов")
-  .regex(/^[A-Za-zА-Яа-яЁё\s]+$/, "Только буквы и пробелы");
+  .regex(/^[A-Za-zА-Яа-яЁёЎўҚқҒғҲҳ'ʻʼ‘’`\- ]+$/, "Только буквы и пробелы");
 
 // Telegram username (может быть пустым)
 const telegramSchema = z
@@ -28,19 +29,13 @@ const phoneSchema = z
   .regex(/^\+?[0-9]{10,15}$/, "Неверный формат телефона")
   .optional();
 
-// Дата рождения
+// Дата рождения: настоящая дата, возраст 18–100 (раньше проходил, например, 1774 год)
 const birthDateSchema = z
   .string()
   .refine((date) => {
-    const birthDate = new Date(date);
-    const today = new Date();
-    const minAgeDate = new Date(
-      today.getFullYear() - 18,
-      today.getMonth(),
-      today.getDate(),
-    );
-    return birthDate <= minAgeDate && birthDate <= today;
-  }, "Возраст должен быть не менее 18 лет и дата не в будущем")
+    const age = ageOn(date);
+    return age !== null && age >= MIN_AGE && age <= MAX_AGE;
+  }, "AGE_OUT_OF_RANGE")
   .optional();
 
 // Пол

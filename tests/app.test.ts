@@ -17,7 +17,9 @@ describe("app basics", () => {
   it("unknown route -> JSON 404", async () => {
     const res = await request(app).get("/definitely-not-here");
     expect(res.status).toBe(404);
-    expect(res.body).toEqual({ success: false, message: "NOT_FOUND" });
+    expect(res.body.success).toBe(false);
+    expect(res.body.code).toBe("NOT_FOUND");
+    expect(typeof res.body.message).toBe("string");
   });
 
   it("sets security headers (helmet) and hides x-powered-by", async () => {
@@ -125,6 +127,39 @@ describe("admin reports", () => {
 
   it("growth stats require login", async () => {
     const res = await request(app).get("/admin/stats/growth");
+    expect(res.status).toBe(401);
+  });
+});
+
+describe("error messages (language)", () => {
+  it("adds a human-readable message in Russian by default", async () => {
+    const res = await request(app).post("/pass/reset").send({ resetToken: "x", newPassword: "1" });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/[А-Яа-я]/);
+    expect(res.body.message).not.toContain("undefined");
+  });
+
+  it("uses X-Lang header", async () => {
+    const res = await request(app).post("/pass/reset").set("X-Lang", "en").send({});
+    expect(res.body.message).toMatch(/^[A-Za-z]/);
+  });
+
+  it("falls back to Accept-Language (uz)", async () => {
+    const res = await request(app).get("/chats").set("Accept-Language", "uz-UZ,uz;q=0.9");
+    expect(res.status).toBe(401);
+    expect(res.body.message).toBe("Hisobingizga kiring");
+  });
+
+  it("malformed JSON is a client error with a message", async () => {
+    const res = await request(app).post("/auth/login").set("Content-Type", "application/json").send("{bad");
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBeTruthy();
+  });
+});
+
+describe("users list is private", () => {
+  it("GET /users requires login", async () => {
+    const res = await request(app).get("/users");
     expect(res.status).toBe(401);
   });
 });

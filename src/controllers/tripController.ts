@@ -1,3 +1,5 @@
+import { logger } from "../config/logger";
+import { EDITABLE_TRIP_FIELDS, validateTripInput } from "../utils/tripValidation";
 import { Request, Response } from "express";
 import { Op } from "sequelize";
 import Trip from "../models/Trip";
@@ -220,43 +222,18 @@ export const createTrip = async (req: Request, res: Response) => {
       maxTwoBackSeats = false,
     } = req.body;
 
-    console.log("Создаем поездку для водителя:", driverId, req.body);
-
-    const requiredFields = [
-      "from",
-      "to",
-      "departureAt",
-      "price",
-      "availableSeats",
-    ];
-    const missingFields = requiredFields.filter((field) => !req.body[field]);
-
-    if (missingFields.length > 0) {
-      return sendError(res, ErrorCodes.MISSING_REQUIRED_FIELDS, 400, {
-        missingFields: missingFields,
-      });
+    // Все ошибки полей сразу, с текстами (цена, места, города, дата, длина текстов)
+    const validationErrors = validateTripInput(req.body);
+    if (validationErrors.length > 0) {
+      const onlyMissing = validationErrors.every((e) => e.code === "FIELD_REQUIRED");
+      return sendError(
+        res,
+        onlyMissing ? ErrorCodes.MISSING_REQUIRED_FIELDS : ErrorCodes.VALIDATION_ERROR,
+        400,
+        { errors: validationErrors, missingFields: validationErrors.filter((e) => e.code === "FIELD_REQUIRED").map((e) => e.field) },
+      );
     }
-
-    if (!isValidCityKey(from.cityKey)) {
-      return sendError(res, ErrorCodes.INVALID_CITY_KEY, 400, {
-        field: "from",
-        cityKey: from.cityKey,
-      });
-    }
-
-    if (!isValidCityKey(to.cityKey)) {
-      return sendError(res, ErrorCodes.INVALID_CITY_KEY, 400, {
-        field: "to",
-        cityKey: to.cityKey,
-      });
-    }
-
     const departureDateTime = new Date(departureAt);
-    const now = new Date();
-
-    if (departureDateTime <= now) {
-      return sendError(res, ErrorCodes.TRIP_DATETIME_FUTURE_REQUIRED, 400);
-    }
 
     // Автоматически рассчитываем информацию о маршруте
     let tripInfo = null;
@@ -269,12 +246,12 @@ export const createTrip = async (req: Request, res: Response) => {
 
     const newTrip = await Trip.create({
       driverId: driverId.toString(),
-      from,
-      to,
+      from: { cityKey: from.cityKey, address: String(from.address ?? "").trim() },
+      to: { cityKey: to.cityKey, address: String(to.address ?? "").trim() },
       departureAt: departureDateTime,
-      price: parseFloat(price),
-      availableSeats: parseInt(availableSeats),
-      description: description || "",
+      price: Math.round(Number(price)),
+      availableSeats: Number(availableSeats),
+      description: String(description ?? "").trim(),
       maxTwoBackSeats: Boolean(maxTwoBackSeats),
       status: "created",
       tripInfo: tripInfo || undefined,
@@ -317,9 +294,21 @@ export const updateTrip = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const driverId = req.user!.id;
-    const updateData = req.body;
 
-    console.log("Обновляем поездку ID:", id, "для водителя:", driverId);
+    // Только разрешённые поля. Раньше в поездку записывалось всё тело запроса:
+    // водитель мог сам поставить status "paid" (обойти оплату), сменить driverId и т.п.
+    const updateData: Record<string, any> = {};
+    for (const f of EDITABLE_TRIP_FIELDS) {
+      if (req.body[f] !== undefined) updateData[f] = req.body[f];
+    }
+    if (Object.keys(updateData).length === 0) {
+      return sendError(res, ErrorCodes.NO_DATA_TO_UPDATE, 400);
+    }
+
+    const validationErrors = validateTripInput(updateData, { partial: true });
+    if (validationErrors.length > 0) {
+      return sendError(res, ErrorCodes.VALIDATION_ERROR, 400, { errors: validationErrors });
+    }
 
     const trip = await Trip.findOne({
       where: { id, driverId },
@@ -329,16 +318,24 @@ export const updateTrip = async (req: Request, res: Response) => {
       return sendError(res, ErrorCodes.TRIP_NOT_FOUND_OR_NO_ACCESS, 404);
     }
 
-    if (updateData.departureAt) {
-      updateData.departureAt = new Date(updateData.departureAt);
+    // Город отправления и назначения не должны совпасть после частичного обновления
+    const fromKey = updateData.from?.cityKey ?? trip.from?.cityKey;
+    const toKey = updateData.to?.cityKey ?? trip.to?.cityKey;
+    if (fromKey && fromKey === toKey) {
+      return sendError(res, ErrorCodes.VALIDATION_ERROR, 400, { errors: [{ field: "to", code: "SAME_CITY" }] });
     }
 
+    if (updateData.departureAt) updateData.departureAt = new Date(updateData.departureAt);
+    if (updateData.price !== undefined) updateData.price = Math.round(Number(updateData.price));
+    if (updateData.availableSeats !== undefined) updateData.availableSeats = Number(updateData.availableSeats);
+    if (updateData.maxTwoBackSeats !== undefined) updateData.maxTwoBackSeats = Boolean(updateData.maxTwoBackSeats);
+
     await trip.update(updateData);
-    await updateTripParticipantsActiveTrips(id);
+    await updateTripParticipantsActiveTrips(String(id));
 
     return sendSuccess(res, trip, ErrorCodes.TRIP_UPDATED_SUCCESS, 200);
   } catch (error) {
-    console.error("Ошибка при обновлении поездки:", error);
+    logger.error({ err: error }, "trip update failed");
     return sendError(res, ErrorCodes.TRIP_UPDATE_ERROR, 500);
   }
 };
