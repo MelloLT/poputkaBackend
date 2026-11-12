@@ -7,7 +7,7 @@ import path from "path";
 import { env } from "./config/env";
 import { apiLimiter } from "./middleware/rateLimit";
 import { logger } from "./config/logger";
-import { sendSuccess } from "./utils/responseHelper";
+import { sendError, sendSuccess } from "./utils/responseHelper";
 import authRoutes from "./routes/auth";
 import tripRoutes from "./routes/trips";
 import userRoutes from "./routes/users";
@@ -74,19 +74,23 @@ export const createApp = () => {
 
   // 404
   app.use((_req, res) => {
-    res.status(404).json({ success: false, message: "NOT_FOUND" });
+    sendError(res, "NOT_FOUND", 404);
   });
 
   // Общий обработчик ошибок
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
-    logger.error({ err, method: req.method, url: req.originalUrl }, "Unhandled error");
     if (res.headersSent) return;
+    // Битый JSON в теле запроса — ошибка клиента, а не сервера
+    if (err?.type === "entity.parse.failed") {
+      return sendError(res, "EMPTY_OR_UNPARSED_REQUEST_BODY", 400);
+    }
+    if (err?.type === "entity.too.large") {
+      return sendError(res, "VALIDATION_ERROR", 413);
+    }
+    logger.error({ err, method: req.method, url: req.originalUrl }, "Unhandled error");
     const status = err.status || err.statusCode || 500;
-    res.status(status).json({
-      success: false,
-      message: status === 500 ? "INTERNAL_SERVER_ERROR" : err.message,
-    });
+    sendError(res, status >= 500 ? "INTERNAL_SERVER_ERROR" : "VALIDATION_ERROR", status);
   });
 
   return app;
