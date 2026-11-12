@@ -6,11 +6,12 @@ import {
   updateCar,
   updateProfile,
 } from "../controllers/userController";
-import { authMiddleware } from "../middleware/auth";
+import { authMiddleware, requireAdmin } from "../middleware/auth";
 
 const router = express.Router();
 
-router.get("/", getUsers);
+// Полный список пользователей — только для админа. Раньше api.pop-utka.uz/users отдавал его всем.
+router.get("/", authMiddleware, requireAdmin, getUsers);
 router.get("/drivers", getDrivers);
 router.get("/:id", getUserById);
 
