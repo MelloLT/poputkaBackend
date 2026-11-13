@@ -4,7 +4,7 @@ import type { FieldError } from "./userValidation";
 // Разумные границы цены за место (UZS). Раньше цена не проверялась: принимались 1 UZS
 // и 10 000 000 000 000 UZS, а отрицательная роняла создание поездки с непонятной ошибкой.
 export const PRICE_MIN = 1_000;
-export const PRICE_MAX = 5_000_000;
+export const PRICE_MAX = 10_000_000;
 export const SEATS_MIN = 1;
 export const SEATS_MAX = 8;
 export const DESCRIPTION_MAX = 500;
