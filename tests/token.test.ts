@@ -6,6 +6,8 @@ import {
   signResetToken,
   verifyResetToken,
   passwordFingerprint,
+  signPhoneToken,
+  isPhoneTokenValid,
 } from "../src/utils/token";
 
 describe("auth token", () => {
@@ -34,5 +36,21 @@ describe("reset token", () => {
 
   it("rejects a regular auth token used as reset token", () => {
     expect(() => verifyResetToken(generateToken("u1", "passenger"))).toThrow();
+  });
+});
+
+describe("phone confirmation token", () => {
+  it("is valid only for the same purpose and phone (any formatting)", () => {
+    const t = signPhoneToken("register", "+998 90 123-45-67");
+    expect(isPhoneTokenValid(t, "register", "998901234567")).toBe(true);
+    expect(isPhoneTokenValid(t, "register", "+998901234568")).toBe(false);
+    expect(isPhoneTokenValid(t, "change_phone", "998901234567")).toBe(false);
+  });
+
+  it("rejects missing, garbage and forged tokens", () => {
+    expect(isPhoneTokenValid(undefined, "register", "998901234567")).toBe(false);
+    expect(isPhoneTokenValid("abc", "register", "998901234567")).toBe(false);
+    const forged = jwt.sign({ purpose: "phone-register", phone: "998901234567" }, "wrong-secret-wrong-secret");
+    expect(isPhoneTokenValid(forged, "register", "998901234567")).toBe(false);
   });
 });

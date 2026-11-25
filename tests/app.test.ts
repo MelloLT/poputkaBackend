@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import request from "supertest";
 import jwt from "jsonwebtoken";
 import { createApp } from "../src/app";
-import { generateToken } from "../src/utils/token";
+import { generateToken, signPhoneToken, signResetToken } from "../src/utils/token";
 
 // Эти проверки срабатывают до обращения к БД, поэтому Postgres для тестов не нужен.
 const app = createApp();
@@ -158,8 +158,50 @@ describe("error messages (language)", () => {
 });
 
 describe("users list is private", () => {
-  it("GET /users requires login", async () => {
+  it("GET /users without login -> bare 401, no details", async () => {
     const res = await request(app).get("/users");
     expect(res.status).toBe(401);
+    expect(res.text).toBe("");
+  });
+
+  it("GET /users with garbage token -> bare 401", async () => {
+    const res = await request(app).get("/users").set("Authorization", "Bearer nope");
+    expect(res.status).toBe(401);
+    expect(res.text).toBe("");
+  });
+});
+
+describe("registration requires SMS confirmation on the backend", () => {
+  const body = {
+    firstName: "Ali",
+    lastName: "Valiev",
+    username: "ali_test",
+    email: "ali.test@gmail.com",
+    phone: "+998901234567",
+    password: "Qatest123",
+    role: "passenger",
+    gender: "male",
+    birthDate: "1995-05-05",
+  };
+
+  it("without otpToken -> 403 PHONE_NOT_VERIFIED", async () => {
+    const res = await request(app).post("/auth/register").send(body);
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe("PHONE_NOT_VERIFIED");
+    expect(res.body.message).toBeTruthy();
+  });
+
+  it("with a token for another phone -> 403", async () => {
+    const res = await request(app)
+      .post("/auth/register")
+      .send({ ...body, otpToken: signPhoneToken("register", "+998900000000") });
+    expect(res.status).toBe(403);
+  });
+
+  it("with a token of another purpose -> 403", async () => {
+    for (const otpToken of [signPhoneToken("change_phone", body.phone), signResetToken(body.phone, "x")]) {
+      const res = await request(app).post("/auth/register").send({ ...body, otpToken });
+      expect(res.status).toBe(403);
+    }
   });
 });

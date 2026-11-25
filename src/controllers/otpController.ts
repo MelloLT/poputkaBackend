@@ -9,7 +9,7 @@ import { ErrorCodes } from "../utils/errorCodes";
 import { sendError, sendSuccess } from "../utils/responseHelper";
 import { env } from "../config/env";
 import { logger } from "../config/logger";
-import { signResetToken } from "../utils/token";
+import { signPhoneToken, signResetToken } from "../utils/token";
 
 const OTP_TTL_MS = 5 * 60 * 1000;
 const OTP_RESEND_COOLDOWN_MS = 60 * 1000;
@@ -136,11 +136,14 @@ export const verifyOtpService = async (req: Request, res: Response) => {
     await otp.destroy();
 
     // После успешного "recover" выдаём короткоживущий токен — без него /pass/reset не работает
-    let data: { resetToken: string } | null = null;
+    let data: { resetToken: string } | { otpToken: string } | null = null;
     if (type === "recover") {
       const user = await User.findOne({ where: { phone }, attributes: ["id", "password"] });
       if (!user) return sendError(res, ErrorCodes.USER_NOT_FOUND, 404);
       data = { resetToken: signResetToken(phone, user.password) };
+    } else if (type === "register" || type === "change_phone") {
+      // Доказательство, что номер подтверждён: без него /auth/register и смена телефона не пройдут
+      data = { otpToken: signPhoneToken(type, phone) };
     }
     return sendSuccess(res, data, ErrorCodes.OTP_VERIFIED_SUCCESS, 200);
   } catch (e) {

@@ -313,6 +313,11 @@ const T: Record<string, Text> = {
     en: "Too many attempts, request a new code",
   },
   OTP_INVALID_CODE: { ru: "Неверный код", uz: "Kod noto‘g‘ri", en: "Incorrect code" },
+  PHONE_NOT_VERIFIED: {
+    ru: "Подтвердите номер телефона кодом из SMS",
+    uz: "Telefon raqamini SMS-kod bilan tasdiqlang",
+    en: "Please confirm your phone number with the SMS code",
+  },
 };
 
 // Запасные тексты по классу ошибки, если кода нет в словаре

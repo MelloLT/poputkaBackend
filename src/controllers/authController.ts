@@ -9,7 +9,7 @@ import Trip from "../models/Trip";
 import { sendSuccess, sendError } from "../utils/responseHelper";
 import { ErrorCodes } from "../utils/errorCodes";
 
-import { generateToken, authCookieOptions, authCookieMaxAgeMs } from "../utils/token";
+import { generateToken, authCookieOptions, authCookieMaxAgeMs, isPhoneTokenValid } from "../utils/token";
 
 /** Какие из логин / email / телефон уже заняты — ошибки по полям */
 const findConflicts = async (u: { username: string; email: string; phone: string }) => {
@@ -44,6 +44,11 @@ export const register = async (req: Request, res: Response) => {
     const validationErrors = validateRegistration(req.body);
     if (validationErrors.length > 0) {
       return sendError(res, ErrorCodes.VALIDATION_ERROR, 422, { errors: validationErrors });
+    }
+
+    // Номер должен быть подтверждён SMS-кодом на беке (otpToken из /otp/verify, type=register)
+    if (!isPhoneTokenValid(req.body.otpToken, "register", phone)) {
+      return sendError(res, ErrorCodes.PHONE_NOT_VERIFIED, 403);
     }
 
     const normalized = {

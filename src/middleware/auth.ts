@@ -99,3 +99,33 @@ export const requireAdmin = (
 
   next();
 };
+
+/**
+ * Только для админа, но без подробностей в ответе: пустой 401 (не вошёл / токен плохой)
+ * или пустой 403 (вошёл, но не админ). По просьбе тестировщиков безопасности —
+ * чтобы по ответу нельзя было понять, что именно не так.
+ */
+export const requireAdminSilent = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  let token = req.cookies?.accessToken;
+  if (!token && req.headers.authorization?.startsWith("Bearer ")) {
+    token = req.headers.authorization.split(" ")[1];
+  }
+  if (!token) return res.status(401).end();
+
+  try {
+    const payload = verifyToken(token);
+    const user = await User.findByPk(payload.userId, {
+      attributes: { exclude: ["password", "verificationCode", "verificationCodeExpires"] },
+    });
+    if (!user) return res.status(401).end();
+    if (user.role !== "admin" || user.isBanned) return res.status(403).end();
+    req.user = user;
+    next();
+  } catch {
+    return res.status(401).end();
+  }
+};

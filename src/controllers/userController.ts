@@ -8,6 +8,7 @@ import {
 import { ZodError } from "zod";
 import { sendSuccess, sendError } from "../utils/responseHelper";
 import { ErrorCodes } from "../utils/errorCodes";
+import { isPhoneTokenValid } from "../utils/token";
 
 // Получить всех пользователей
 // Поля, которые не должны уходить в публичные ответы (/users, /users/drivers, /users/:id).
@@ -314,8 +315,12 @@ export const updateProfile = async (req: Request, res: Response) => {
               phone: validatedData.phone,
             });
           }
+          // Новый номер должен быть подтверждён SMS-кодом (otpToken из /otp/verify, type=change_phone)
+          if (!isPhoneTokenValid(req.body.otpToken, "change_phone", validatedData.phone)) {
+            return sendError(res, ErrorCodes.PHONE_NOT_VERIFIED, 403);
+          }
           updateData.phone = validatedData.phone;
-          updateData.phoneVerified = false;
+          updateData.phoneVerified = true;
         } else {
           // Просто копируем значение
           updateData[field] = validatedData[field];
