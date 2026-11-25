@@ -340,7 +340,12 @@ export const getAllReports = async (req: Request, res: Response) => {
 export const updateReportStatus = async (req: Request, res: Response) => {
   try {
     const { userId, reportId } = req.params;
-    const { status, adminNote } = req.body;
+    const { status } = req.body;
+    if (!["pending", "reviewed", "resolved"].includes(status)) {
+      return res.status(400).json({ success: false, message: "Неверный статус жалобы" });
+    }
+    const adminNote =
+      typeof req.body.adminNote === "string" ? req.body.adminNote.trim().slice(0, 500) : undefined;
 
     console.log(
       `Обновление статуса жалобы: userId=${userId}, reportId=${reportId}`,
@@ -360,7 +365,8 @@ export const updateReportStatus = async (req: Request, res: Response) => {
       targetUser.reports?.length || 0,
     );
 
-    const reports = targetUser.reports || [];
+    // Копия массива — см. комментарий ниже про сохранение JSON
+    const reports = [...(targetUser.reports || [])];
     const reportIndex = reports.findIndex((r: any) => r.id === reportId);
 
     console.log(`Индекс жалобы: ${reportIndex}`);
@@ -398,7 +404,8 @@ export const updateReportStatus = async (req: Request, res: Response) => {
       }
 
       // Обновляем жалобу у найденного пользователя
-      const foundReports = foundUser.reports || [];
+      // Новый массив, а не правка на месте: иначе Sequelize не видит изменения JSON и не сохраняет
+      const foundReports = [...(foundUser.reports || [])];
       foundReports[foundReportIndex] = {
         ...foundReports[foundReportIndex],
         status: status,
