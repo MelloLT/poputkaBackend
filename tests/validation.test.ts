@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateRegistration, passwordProblem, ageOn } from "../src/utils/userValidation";
+import { validateRegistration, passwordProblem, ageOn, phoneLoginCandidates } from "../src/utils/userValidation";
 import { validateTripInput, PRICE_MAX } from "../src/utils/tripValidation";
 
 const NOW = new Date("2026-11-12T12:00:00Z");
@@ -94,5 +94,19 @@ describe("trip validation", () => {
   it("partial mode checks only provided fields", () => {
     expect(validateTripInput({ price: 90000 }, { partial: true })).toEqual([]);
     expect(codes(validateTripInput({ price: 0 }, { partial: true }))).toContain("price:PRICE_OUT_OF_RANGE");
+  });
+});
+
+describe("phoneLoginCandidates (вход по номеру телефона)", () => {
+  it("принимает номер в разных форматах", () => {
+    expect(phoneLoginCandidates("998901234567")).toEqual(["998901234567", "+998901234567"]);
+    expect(phoneLoginCandidates("+998 90 123-45-67")).toEqual(["998901234567", "+998901234567"]);
+    expect(phoneLoginCandidates("(90) 123 45 67")).toEqual(["901234567", "998901234567", "+901234567", "+998901234567"]);
+  });
+  it("не считает номером email, логин и короткие числа", () => {
+    expect(phoneLoginCandidates("user@gmail.com")).toEqual([]);
+    expect(phoneLoginCandidates("meng1isha")).toEqual([]);
+    expect(phoneLoginCandidates("12345")).toEqual([]);
+    expect(phoneLoginCandidates("")).toEqual([]);
   });
 });

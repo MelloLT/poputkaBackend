@@ -1,4 +1,4 @@
-import { FieldError, normalizePhone, validateRegistration } from "../utils/userValidation";
+import { FieldError, normalizePhone, phoneLoginCandidates, validateRegistration } from "../utils/userValidation";
 import { touchLastSeen } from "../utils/lastSeen";
 import { Request, Response } from "express";
 import { Op } from "sequelize";
@@ -134,9 +134,16 @@ export const login = async (req: Request, res: Response) => {
       return sendError(res, ErrorCodes.LOGIN_PASSWORD_REQUIRED, 400);
     }
 
+    // Вход по email, логину или номеру телефона
+    const login = String(loginInput).trim();
+    const phones = phoneLoginCandidates(login);
     const user = await User.findOne({
       where: {
-        [Op.or]: [{ email: loginInput }, { username: loginInput }],
+        [Op.or]: [
+          { email: login },
+          { username: login },
+          ...(phones.length ? [{ phone: { [Op.in]: phones } }] : []),
+        ],
       },
     });
 

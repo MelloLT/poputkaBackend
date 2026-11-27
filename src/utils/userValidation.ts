@@ -28,6 +28,22 @@ const PHONE_RE = /^\+?\d{11,15}$/;
 
 export const normalizePhone = (phone: unknown) => String(phone ?? "").replace(/[\s\-()]/g, "");
 
+/**
+ * Варианты номера телефона для входа по номеру.
+ * Телефоны в базе хранятся цифрами с кодом страны (998901234567).
+ * Принимаем "+998 90 123-45-67", "998901234567" и местный "901234567" (без 998).
+ * Если ввод не похож на номер (есть буквы, @ и т.п.) — пустой массив.
+ */
+export const phoneLoginCandidates = (input: unknown): string[] => {
+  const raw = String(input ?? "").trim();
+  if (!/^\+?[\d\s\-()]+$/.test(raw)) return [];
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length < 9 || digits.length > 15) return [];
+  const full = digits.length === 9 ? [digits, `998${digits}`] : [digits];
+  // Старые записи могли сохраниться с "+" в начале
+  return [...full, ...full.map((d) => `+${d}`)];
+};
+
 /** Конкретная причина, почему пароль не подходит (или null, если подходит) */
 export const passwordProblem = (password: unknown): string | null => {
   const p = String(password ?? "");
