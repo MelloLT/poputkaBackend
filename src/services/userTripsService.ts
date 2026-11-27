@@ -1,3 +1,4 @@
+import { Op } from "sequelize";
 import User from "../models/User";
 import Trip from "../models/Trip";
 import Booking from "../models/Booking";
@@ -151,7 +152,7 @@ export const updateUserActiveTrips = async (userId: string) => {
           {
             model: Trip,
             as: "trip",
-            where: { status: "active" },
+            where: { status: { [Op.in]: ["created", "paid"] } },
             include: [
               {
                 model: User,

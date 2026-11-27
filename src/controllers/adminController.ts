@@ -470,7 +470,8 @@ export const getAdminStats = async (req: Request, res: Response) => {
     const totalDrivers = await User.count({ where: { role: "driver" } });
     const totalPassengers = await User.count({ where: { role: "passenger" } });
     const totalTrips = await Trip.count();
-    const activeTrips = await Trip.count({ where: { status: "active" } });
+    // В enum статусов нет "active": активная поездка — созданная или оплаченная
+    const activeTrips = await Trip.count({ where: { status: { [Op.in]: ["created", "paid"] } } });
     const completedTrips = await Trip.count({ where: { status: "completed" } });
     const totalBookings = await Booking.count();
     const bannedUsers = await User.count({ where: { isBanned: true } });

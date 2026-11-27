@@ -1,3 +1,4 @@
+import { Op } from "sequelize";
 import { Request, Response } from "express";
 import Booking from "../models/Booking";
 import Trip from "../models/Trip";
@@ -419,7 +420,7 @@ export const getPassengerActiveTrips = async (req: Request, res: Response) => {
           model: Trip,
           as: "trip",
           where: {
-            status: "active",
+            status: { [Op.in]: ["created", "paid"] },
           },
           include: [
             {
